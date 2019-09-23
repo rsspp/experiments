@@ -1,0 +1,951 @@
+%info
+Iterative study to observe temporal load balancing effects of RSS, RSS++, metron, and various dispatching techniques.
+
+This testie reports various metrics of load per queue every second in the course of various traces.
+
+For historical reason, RSS++ may be referred to as pianorss in code
+
+
+%config
+timeout=12000
+n_runs=3
+imbalance:n_runs=1 //Imbalance is a statistic dependent of the trace, it has no variance
+
+
+//A lot of naming, coloring, etc. Meet us at the next section (%variables)
+var_names={QUEUE:Number of processing cores, COUNT:Number of Packets, DROP:Number of Dropped Packets, LOAD-IMBALANCE-RATIO-BYTES:Bytes Load Imbalance Ratio, LOAD-IMBALANCE-RATIO-PKTS:Packets Load Imbalance Ratio, IDEAL-LOAD-PER-QUEUE-BYTES:Ideal load per queue, IDEAL-LOAD-PER-QUEUE-PKTS:Ideal load per queue, MIN-LOAD-BYTES:Least loaded queue, MAX-LOAD-BYTES:Most loaded queue, MIN-LOAD-PKTS:Least loaded queue, MAX-LOAD-PKTS:Most loaded queue, MIN-IDEAL-LOAD-BYTES-RATIO:Bytes difference between least and ideally loaded queues, DEV-IDEL-LOAD-BYTES-RATIO:Maximum bytes difference from ideal load,MAX-IDEAL-LOAD-BYTES-RATIO:Bytes difference between most and ideally loaded queues, MIN-MAX-LOAD-BYTES-RATIO:Bytes difference between least and most loaded queues, MIN-IDEAL-LOAD-PKTS-RATIO:Least/ideal loaded queue, DEV-IDEAL-LOAD-PKTS-RATIO:Maximum packets difference from ideal load, MAX-IDEAL-LOAD-PKTS-RATIO:Packets difference between most and ideally loaded queues, MIN-MAX-LOAD-PKTS-RATIO:Least/Most loaded queue}
+var_names+={result-DIFFBYTES:Temporal load at time, result-DIFFPKTS:Temporal load at time, result-COLDESTBYTES:Queue index with the least load in bytes, result-HOTTESTBYTES:Queue index with the most load in bytes, result-COLDESTPKTS:Queue index with the least load in packets, result-HOTTESTPKTS:Queue index with the most load in packets,time:Time (seconds),IG:Time (seconds),boxplot: }
+
+var_names+={ICPU:CPU load}
+
+highimb:var_log={MIN-MAX-LOAD-PKTS-RATIO}
+
+var_unit={LOAD-IMBALANCE-RATIO-BYTES:%, LOAD-IMBALANCE-RATIO-PKTS:%, IDEAL-LOAD-PER-QUEUE-BYTES:bytes, IDEAL-LOAD-PER-QUEUE-PKTS:packets, MIN-LOAD-BYTES:bytes, MAX-LOAD-BYTES:bytes, MIN-LOAD-PKTS:packets, MAX-LOAD-PKTS:packets, MIN-IDEAL-LOAD-BYTES-RATIO:%, MAX-IDEAL-LOAD-BYTES-RATIO:%, MIN-MAX-LOAD-BYTES-RATIO:%, MIN-IDEAL-LOAD-PKTS-RATIO:%, MAX-IDEAL-LOAD-PKTS-RATIO:%, MIN-MAX-LOAD-PKTS-RATIO:%, result-DIFFBYTES:bytes, result-DIFFPKTS:packets, result-COLDESTBYTES:% of time, result-HOTTESTBYTES:% of time, result-COLDESTPKTS:% of time, result-HOTTESTPKTS:% of time}
+
+var_format={QUEUE:%d, COUNT:%ld, DROP:%ld, LOAD-IMBALANCE-RATIO-BYTES:%3.1f, IDEAL-LOAD-PER-QUEUE-BYTES:%ld, IDEAL-LOAD-PER-QUEUE-PKTS:%ld, LOAD-IMBALANCE-RATIO-PKTS:%3.1f, MIN-LOAD-BYTES:%ld, MAX-LOAD-BYTES:%ld, MIN-LOAD-PKTS:%ld, MAX-LOAD-PKTS:%ld, MIN-IDEAL-LOAD-BYTES-RATIO:%.2f, MAX-IDEAL-LOAD-BYTES-RATIO:%.2f, MIN-MAX-LOAD-BYTES-RATIO:%.2f, MIN-IDEAL-LOAD-PKTS-RATIO:%.2f, MAX-IDEAL-LOAD-PKTS-RATIO:%.2f, MIN-MAX-LOAD-PKTS-RATIO:%.2f, result-DIFFBYTES:%ld, result-DIFFPKTS:%ld, result-COLDESTBYTES:%.2f, result-HOTTESTBYTES:%.2f, result-COLDESTPKTS:%.2f, result-HOTTESTPKTS:%.2f}
+
+//graph_variables_as_series={QUEUE}
+
+//graph_result_as_variables={QUEUE-([0-9]):COUNT, QUEUE-([0-9]):DROP, QUEUE-([0-9]):LOAD-IMBALANCE-RATIO-BYTES, QUEUE-([0-9]):LOAD-IMBALANCE-RATIO-PKTS, DIFF-BYTES-(.*):QUEUE-DIFFBYTES, DIFF-PKTS-(.*):QUEUE-DIFFPKTS, COLDEST-BYTES-(.*):QUEUE-COLDESTBYTES, HOTTEST-BYTES-(.*):QUEUE-HOTTESTBYTES, COLDEST-PKTS-(.*):QUEUE-COLDESTPKTS, HOTTEST-PKTS-(.*):QUEUE-HOTTESTPKTS}
+
+graph_result_as_variables={DIFF-BYTES-(.*):QUEUE-DIFFBYTES, DIFF-PKTS-(.*):QUEUE-DIFFPKTS, COLDEST-BYTES-(.*):QUEUE-COLDESTBYTES, HOTTEST-BYTES-(.*):QUEUE-HOTTESTBYTES, COLDEST-PKTS-(.*):QUEUE-COLDESTPKTS, HOTTEST-PKTS-(.*):QUEUE-HOTTESTPKTS}
+
+graph_result_as_variables+={ICPU-(.*):CPU-ICPU}
+graph_variables_as_series={CPU,QUEUE}
+
+
+// QUEUE-([0-9]):COUNT, QUEUE-([0-9]):DROP, IQUEUE-BYTES-(.*):QUEUE-BYTES, IQUEUE-PKTS-(.*):QUEUE-PKTS, QUEUE-([0-9]):LOAD-IMBALANCE-RATIO-BYTES, QUEUE-([0-9]):LOAD-IMBALANCE-RATIO-PKTS,
+
+// IQUEUE-BYTES-(.*):QUEUE-BYTES, IQUEUE-PKTS-(.*):QUEUE-PKTS,
+
+// var_lim={TIME:0-10}
+
+accept_zero+={DROPPED,OUTOFORDER,FWDROPPED,FWDISAPEAR,FWHWDISAPEAR,FWMISSED,RCV_OUTOFORDER,RCV_OUTOFORDERPC}
+-iterative:results_expect+={THROUGHPUT}
+-notime:results_expect+={MAX-DIFF}
+//,MIN-MAX-LOAD-PKTS-RATIO}
+
+//Throughput
+var_names+={THROUGHPUT:Throughput (Gbps)}
+var_format+={THROUGHPUT:%.02f}
+var_divider+={THROUGHPUT:1000000000}
+//rate:var_lim+={THROUGHPUT:0-10}
+
+//Dropped,count
+var_names+={DROPPED:Packets dropped (KPackets),COUNT:Packets forwarded (MPackets)}
+var_format+={DROPPED:%d,COUNT:%d}
+var_divider+={DROPPED:1000,COUNT:1000000}
+
+//Cycles
+var_names+={KCYCLES:Cycles (MCycles),KCYCLESPP:Cycles per packet (KCycles)}
+var_divider+={KCYCLES:1000,KCYCLESPP:1}
+var_format+={KCYCLES:%d,KCYCLESPP:%d}
+//var_log+={KCYCLESPP}
+//var_ticks+={KCYCLESPP:0+1+5+10+20+40+80+160}
+
+//Rate
+var_names+={GEN_RATE:Generator rate (Gbps)}
+var_divider+={GEN_RATE:1000000000}
+var_format+={GEN_RATE:%.02f}
+
+//Latency
+var_names+={LATENCY:Latency (µs),LAT99:Tail latency (µs)}
+-nolatlog:var_log_base+={LAT99:2,LATENCY:2}
+var_format+={LAT99:%d,LATENCY:%d}
+//var_lim+={LAT99:0-2048}
+-nolatlog:var_ticks+={LAT99:16+32+64+128+256+512+1024+2048}
+
+//Iterative
+var_sync+={IGEN,IG,time}
+//var_shift+={IG:5,IGEN:5,time:5}
+var_lim+={CDFLATVAL:10-15000}
+var_log_base+={CDFLATVAL:10}
+var_names+={CDFLATPC:Fraction of packets (%),CDFLATVAL:Latency (µs),TIMING:Trace replay speed (%)}
+var_divider+={CDFLATPC:0.01}
+var_format+={CDFLATPC:%d}
+var_ticks+={CDFLATVAL:10+100+1000+10000}
+
+//UDP, flows
+var_names+={GEN_FLOWS:Flows per client,OUTOFORDERPC:Out of order packets (%)}
+var_divider+={GEN_FLOWS:0.25}
+var_log+={GEN_FLOWS}
+wpf:var_lim+={KCYCLESPP:0-5}
+var_ticks+={GEN_FLOWS:1+4+16+64+256+1024}
+wpf:graph_lines={-,:}
+
+%include testie.d/common.testie
+
+//---------------------------------------
+//-------- VARIABLES -----
+//---------------------------------------
+// "tune" tags are to try multiple values
+%variables
+
+//Cycles counting method
+CYCLES=cycles
+pianorss:CYCLES=cyclesqueue
+tunecycles:CYCLES={cycles,cyclesqueue} //Try both
+
+//Size of the RETA table
+RETA_SIZE=512
+
+//Numbers of queues to try
+QUEUE=[1-16]
+
+//Number of decriptors per queue
+NDESC=4096
+SINGLEDESC=4096
+
+//Generator parameter, you do not want to change this
+GEN_DESC=4096
+LIMIT=200000000
+LIMIT_TIME=70
+qtest:LIMIT=100000000
+qtest:LIMIT_TIME=10
+
+//Rate of the generator
+-rate:GEN_RATE=-1
+rate:GEN_RATE=10000000000
+slow,rate:GEN_RATE=1000000000
+fast,rate:GEN_RATE=20000000000
+
+//Balancing period
+BALANCE_PERIOD=500
+pianorss:BALANCE_PERIOD=100
+
+//TODO : remove these dependencies
+WORKING_DIR=/home/tom/workspace/metron-testbed/metron-blackbox-metron/load-imbalance
+CLICK_EXEC=/home/tom/workspace/fastclick/bin/click
+
+//Deprecated, but we never know...
+FORCE_LEN=0
+END_AFTER=0
+STOP_AT_TRACE=0                                 // If 0, all pcaps of a folder are injected. If X > 0, only X traces are injected
+RX_PORT=80
+SCRIPT_ELEMENT=s
+
+//Autoscaling feature
+AUTOSCALE=false
+
+//Should we follow the timing of the trace? For RSS++ in general we want, as replaying packets faster leads to unrealistic flow stats. Set to 0 to havily load at 100G
+TIMING=0
+timing:TIMING=1
+
+//Selection of the load balancing method, using tags
+pianorss|dynamicrss|rssrr|dynamicmetron|rss:METRONTARGET=load
+dynamicmetron,balance:METRONTARGET=balance
+pianorss:TARGETMETHOD=pianorss
+PROMISC=true
+pianorss,-i40e|dynamicrss,-i40e|rssrr,-i40e:PROMISC=false
+dynamicrss|rss:TARGETMETHOD=rss
+rssrr:TARGETMETHOD=rssrr
+
+//Don't change these
+REPORT_PERIOD=1
+GEN_NOREWRITE_ETHER=1
+MONTHREAD=35
+BTHREAD=34
+PIPELINE=0
+pipeline:PIPELINE=1
+BLOCKING=0 //Drop packets if TX is full
+PAUSE=none //Disable pause frame
+flowrr:AWARE=0
+
+dynamicmetron|staticmetron:MINMVMT=3 //Metron's default is to not move a thread that moved in the last X seconds
+dynamicmetron,balance:MINMVMT=1 //On a server, 1 is better
+
+
+//Parameters for iterative mode, that is observign what happens over time (vs just reading statistics at the end of the experiment)
+iterative:ITERATIVE=1
+iterative:END_WAIT=5
+replay|iterative:PKTGEN_REPLAY_COUNT=10
+replay|iterative:PKTGEN_REPLAY_TIME=60
+replay|iterative:LIMIT=5000000
+largemem,replay|iterative,largemem:LIMIT=7000000
+replay|iterative:TIMING=100
+iterative:TIMING_FNT=
+replay|iterative:IGNORE=0
+iterative:ITERATION_TIME=0.1
+
+//More generators things
+replay|udp:RCV_NIC=0
+replay|udp:SND_NIC=0
+udp:LIMIT=1000000
+
+//The functions used to squeeze the trace
+HAVE_TIMING_FNT=0
+fnt:HAVE_TIMING_FNT=2
+sfnt:HAVE_TIMING_FNT=1
+fnt1:HAVE_TIMING_FNT=3
+
+TIMING_FNT_BASE?=100
+
+//Pseudo-random number generation to simulate per packet load, or per flow load. Reviewers liked that so much.
+-dynaw:W=100
+wpf:W=0
+wpf:WFLOW=100 //Remember WFLOW, even when deactivated is doing the per-packet thing
+wpf,-nowpf:WPF=Read
+nowpf:WPF=No
+wpf_pwrite:WPF=Write
+wpf_seq:WPF=Sequential write
+
+lowfreq:FREQ=1000
+
+
+
+//----------Late variables----------
+// Late variables are default values, configuration that do not impact the test itself, or computed from the other values specific to the test
+//---------------------------------
+%late_variables
+
+FREQ?=3700
+ISOLATE=1
+dynamicmetron|staticmetron:ISOLATE=0
+
+-fastiteration,iterative:ITERATION_TIME=1
+dynaw:W=EXPAND( $(( int( ($WBASE / 8) * $QUEUE) )) )
+dump:LATENCYDUMP=EXPAND(/home/tom/workspace/rss-experiments/loadvslat/loadvslat-kthmorning-cx5/lat-${NPF_REPO}-${TIMING_FNT_BASE}.csv)
+ANALYSIS?=0
+fnt:TIMING_FNT=EXPAND( min($TIMING_FNT_BASE,$TIMING_FNT_BASE*max(0,sin(min(min(((x+1)/5),1), 1 - max((x-50)/5,0)  )*(pi/2)))) )
+sfnt:TIMING_FNT=10+min(90,90*max(0,sin(min(min((x/15),1), 1 - max((x-30)/30,0)  )*(pi/2))))
+fnt1:HAVE_TIMING_FNT=10+min(90,90*max(0,sin(min(min((x/15),1), 1 - max((x-50)/15,0)  )*(pi/2))))
+
+DANCER?=0
+IMBTHRESH?=0.02
+
+RX_VEC_EN?=1
+BURST?=32
+
+WPF_SEQ?=0
+WPF_PREAD?=5
+WPF_PWRITE?=0
+wpf_seq:WPF_SEQ=1
+wpf_pwrite:WPF_PWRITE=5
+WPF_ORDER?=-1
+wpf_pwrite:WPF_ORDER=54
+WPF_T=65536
+wpf:WPF_ACTIVE=1
+nowpf:WPF_ACTIVE=0
+wpf:PROCESSER_FNT=EXPAND( -> fwp :: FlowWorkPackage(SEQUENTIAL $WPF_SEQ, TABLE_SIZE $WPF_T, FREAD 1, FWRITE 1, PREAD $WPF_PREAD, PWRITE $WPF_PWRITE, W ${WFLOW}, ORDER $WPF_ORDER, ACTIVE $WPF_ACTIVE) )
+STARTCPU?=-1
+FRESERVE?=0
+nat:FRESERVE=64
+migration:MIGRATIONT=5
+migration:PQOSCORE=2
+migration|nat:PROCESSER_FNT=EXPAND(-> manager :: FlowIPManager(CAPACITY $(( int(655360 / 10) )) , RESERVE $FRESERVE, GROUPS $RETA_SIZE, DEF_THREAD $QUEUE) )
+migration,shared|nat,shared:PROCESSER_FNT=EXPAND(-> manager :: FlowIPManagerMP(CAPACITY 6553600 , RESERVE $FRESERVE) )
+migration,-shared|nat,-shared:MANAGER_OPT=, MANAGER manager
+migration:MIGRATEDRV=EXPAND( migratedrv :: Script(TYPE PASSIVE, set n 1, wait $(( int(2 * $MIGRATIONT) )) s, label addc,  write balancer.cpus $(add $STARTCPU $n),  wait ${MIGRATIONT}s, set n $(add $n 1), goto addc ) )
+PROCESSER_FNT?=
+nat:PROCESSER_FNT+= -> FlowIPNAT(FCB_OFFSET 16, SIP 1.0.0.1, STATE false)
+rl:PROCESSER_FNT+= -> RandLoad(MIN 1, MAX 100)
+frl:PROCESSER_FNT+= -> FlowRandLoad(MIN 1, MAX 100, FCB_OFFSET 8)
+MANAGER_OPT?=
+MIGRATEDRV?=
+checkorder:CHECKORDER=1
+
+DBNUMA?=0
+
+BVERBOSE?=0
+PIPELINE?=0
+PKTGEN_SCRIPT=EXPAND(${WORKING_DIR}/tx-pcap.click)
+
+//List of files to pass to click
+caida18|kth:PKTGEN_SCRIPT=EXPAND(${WORKING_DIR}/tx-pcap-transformed.click)
+rss:RSS_SPLITTER_SCRIPT=RSS_IO rx-drss.click rx-process.click PARALLEL_PROCESSER DEV_READ
+pipeline:RSS_SPLITTER_SCRIPT=DISPATCHER SINGLE_IO PIPELINE_PROCESSER DEV_READ
+sprayer|staticmetron:RSS_SPLITTER_SCRIPT=FD_IO rx-none.click rx-process.click PARALLEL_PROCESSER DEV_READ
+dynamicmetron:RSS_SPLITTER_SCRIPT=FD_IO rx-metron.click rx-process.click PARALLEL_PROCESSER DEV_READ
+pianorss:RSS_SPLITTER_SCRIPT=RSS_IO rx-pianorss.click rx-process.click PARALLEL_PROCESSER DEV_READ
+dynamicrss|rssrr:RSS_SPLITTER_SCRIPT=RSS_IO rx-drss.click rx-process.click PARALLEL_PROCESSER DEV_READ
+
+
+//Generate some part of the configuration
+CURMAX=24
+MAXQUEUES=[0-24]
+DISPATCHERS=EXPAND( disp[$MAXQUEUES] -> Paint($MAXQUEUES) -> p$MAXQUEUES :: Processer($(( int($MAXQUEUES + 1) )), $(( "0" if $MAXQUEUES >= $QUEUE else "1")) ) -> legit; p$MAXQUEUES[1]->dropped; )
+DISPATCHERS=HEAD($CURMAX, $DISPATCHERS)
+
+LINKS=EXPAND( [0] -> [$MAXQUEUES]; )
+LINKS=HEAD($CURMAX, $LINKS)
+
+PQUEUES=EXPAND( rr[$MAXQUEUES]->Queue(CAPACITY $NDESC, BLOCKING $BLOCKING)->[$MAXQUEUES]output )
+PQUEUES=HEAD($CURMAX, $PQUEUES)
+
+
+COUNTERS=EXPAND( input[$MAXQUEUES] -> q$MAXQUEUES :: CounterMP -> [0]output; )
+COUNTERS=HEAD($CURMAX, $COUNTERS)
+
+DISPSTATS=EXPAND(  	print $time"-RESULT-IQUEUE-PKTS-$MAXQUEUES "$(queuecount/q${MAXQUEUES}.count), print $time"-RESULT-IQUEUE-BYTES-$MAXQUEUES "$(queuecount/q${MAXQUEUES}.byte_count), print $time"-RESULT-ICPU-$MAXQUEUES "$(load $(( int($MAXQUEUES + $PIPELINE) ))), )
+DISPSTATS=HEAD($CURMAX, $DISPSTATS)
+
+
+MAXQUEUES=
+
+gdb:GDB=gdb -ex run -ex "signal 2" -ex "bt" -batch -args 
+GDB?=
+
+
+%dynaw:require
+test -n "$WBASE"
+
+//Call scripts for generation
+%-udp,iterative:import@client fastclick-replay-single-mt-timing nolinktest=1
+%-udp,replay,-iterative,-rated:import@client fastclick-replay-single-mt nolinktest=1
+%-udp,replay,-iterative,rated:import@client fastclick-replay-single-mt-rated nolinktest=1
+%-udp,-iterative,-replay,-quad:import@client fastclick-play-single-mt
+%-udp,-iterative,-replay,quad:import@client fastclick-play-single-mt-quad
+%-i40e:import@client dev_rate NIC=0 delay=5
+%udp:import@client fastclick-udpgen-latency-single-multiclient
+
+
+%dpdk,i40e,-nobind:import@p dpdk-bind NIC=0
+%dpdk,i40e,-nobind:import@client dpdk-bind NIC=0
+
+//Set CPU frequency on the server
+%script@p sudo=true autokill=false
+(cd ~/workspace/linux-5.1/tools/power/cpupower/ && sudo LD_LIBRARY_PATH=. ~/workspace/linux-5.1/tools/power/cpupower/cpupower frequency-set -u ${FREQ}M -d ${FREQ}M)
+
+//Script to call perf to track LLC-LOADS
+%perf:script@p sudo=true autokill=false
+bash perf.sh
+
+%file@p perf.sh
+echo "Launching perf"
+start=$(date "+%s.%N")
+while true; do
+    now=$(date "+%s.%N")
+    t=$(echo "$now-$start" | bc)
+    ~/workspace/linux-5.1/tools/perf/perf stat -e cycles,instructions,cache-references,cache-misses,cpu-migrations,bus-cycles,L1-dcache-loads,L1-dcache-load-misses,L1-dcache-stores,LLC-loads,LLC-load-misses,LLC-stores,LLC-prefetches -a --cpu 0-$QUEUE sleep $ITERATION_TIME &> perf.out
+    cat perf.out | grep "LLC-loads" | awk '{ gsub(",","",$1); print "perf-'$t'-RESULT-LLC-LOADS "$1}'
+done
+
+//Script to call PQOS to get LLC misses and other events
+%pqos:script@p sudo=true autokill=false name=pqos waitfor=LOAD_START delay=0
+bash pqos.sh
+
+%file@p pqos.sh
+pqos -m "all:0-$QUEUE" -i $(( int(10 * $ITERATION_TIME) )) -o test.log &
+start=$(date "+%s.%N")
+while true; do
+    sleep $ITERATION_TIME
+    now=$(date "+%s.%N")
+    t=$(echo "$now-$start" | bc)
+    cat test.log | awk '{if($1!="TIME") print $2;}' | awk '{if($1!="IPC") print $1;}' | awk '{ total +=$1;count++} END{print "pqos-'$t'-RESULT-IPC " total/count}'
+    cat test.log | awk '{if($1!="TIME") print $3;}' | awk '{if($1!="MISSES") print $1;}' | awk '{ total +=$1;count++} END{print "pqos-'$t'-RESULT-LLCMISSES " total/count" k"}'
+    cat test.log | awk '{if($1!="TIME") print $4;}' | awk '{if($1!="LLC[KB]") print $1;}' | awk '{ total +=$1;count++} END{print "pqos-'$t'-RESULT-LLC-OCCUPANCY " total/count" KB"}'
+    cat test.log | awk '{if($1!="TIME") print $5;}' | awk '{if($1!="MBL[MB/s]") print $1;}' | awk '{ total +=$1;count++} END{print "pqos-'$t'-RESULT-MBL " total/count" MB/s"}'
+    cat test.log | awk '{if($1!="TIME") print $6;}' | awk '{if($1!="MBR[MB/s]") print $1;}' | awk '{ total +=$1;count++} END{print "pqos-'$t'-RESULT-MBR " total/count" MB/s"}'
+    > test.log
+done
+
+// ---------------------- MAIN CLICK SCRIPT -------------------------
+// At the processing machine, we always run a simple RSS-based receiver
+%script@p sudo=true autokill=true critical=true name=MainClickDUT
+echo "Launching client $RSS_SPLITTER_SCRIPT"
+killall -9 click
+sleep 1
+cat HEADER $RSS_SPLITTER_SCRIPT FOOTER > C
+cat C
+$GDB click --dpdk -l 0-35 --log-level 99 -v -w ${self:0:pci},rx_vec_en=$RX_VEC_EN -- C queuesNb=$QUEUE threadsNb=$QUEUE numa=false toFile=$RSS_SPLITTER_OUT iface=${self:0:pci} rules=$RULES
+err=$?
+echo "Finished with code $err"
+exit $err
+
+// ------------------ Post processing of statistics -------------------
+// Post-processing of queue counters
+%-notime:pyexit
+import sys
+new_t = {}
+prev_time = -1
+prev_results = {}
+
+
+# Maps that count hot and cold queues over time
+cold_key_bytes = "COLDEST-BYTES"
+hot_key_bytes  = "HOTTEST-BYTES"
+cold_key_pkts  = "COLDEST-PKTS"
+hot_key_pkts   = "HOTTEST-PKTS"
+queues_nb = 0
+verbose = False
+started = False
+support_bytes = True
+n_r = 0
+
+new_r = {'MAX-DIFF':0, 'TLOAD' : [], 'TCPU' :[], 'TNCPU' : [], 'TMAXCPU': []}
+
+for time, results in sorted(TIME_RESULTS.items()):
+    if verbose:
+        print("Time: {}".format(time))
+        print("Results: {}".format(results))
+
+    assert time > prev_time, "Sort time properly"
+    new_t[time] = {}
+    new_res = results
+    min_load_bytes = sys.maxsize
+    min_load_pkts  = sys.maxsize
+    max_load_bytes = -1
+    max_load_pkts  = -1
+    tot_load_bytes = 0
+    tot_load_pkts  = 0
+    queues_nb = 0
+    min_bytes_queue_index = -1
+    max_bytes_queue_index = -1
+    min_pkts_queue_index = -1
+    max_pkts_queue_index = -1
+    diff_on_tic = False
+    nonzero = False
+    has_bytes = 0
+    has_pkts = 0
+    t_queues_nb = 0
+    for k, v in sorted(results.items()):
+        tok = k.rsplit('-', 2)
+        if tok[0] == 'CPU' or len(tok) < 3:
+            continue
+        counter_type = tok[1]      # BYTES or PKTS
+        queue_index = tok[2]       # 1-16
+        new_diff_key = "DIFF-" + counter_type + "-" + queue_index
+        diff=-1
+        if v < 0:
+            continue
+        if (prev_time == -1):
+            new_res[new_diff_key] = v                       # First instance has no diff
+        else:
+            if v is None or prev_results.get(k) is None:
+                diff = 0
+            else:
+                diff = v - prev_results.get(k)
+
+            new_res[new_diff_key] = diff
+            if diff > new_r['MAX-DIFF']:
+                new_r['MAX-DIFF'] = diff
+
+            if v == 0 and prev_results.get(k) == 0:
+                continue
+            if diff < 0:
+                print("No difference on queue counter {} at time {}. Current value is {}, last was {}".format(k,time,v,prev_results.get(k)))
+                prev_results = results
+
+                diff_on_tic = False
+                break
+            elif diff > 0:
+                diff_on_tic = True
+
+        if counter_type == "BYTES":
+            has_bytes += 1
+            queues_nb += 1
+            tot_load_bytes += new_res[new_diff_key]
+
+            if not started or new_res[new_diff_key] > 0:
+              t_queues_nb += 1
+              if new_res[new_diff_key] < min_load_bytes:
+                min_load_bytes = new_res[new_diff_key]
+                min_bytes_queue_index = int(queue_index)
+              if new_res[new_diff_key] > max_load_bytes:
+                max_load_bytes = new_res[new_diff_key]
+                max_bytes_queue_index = int(queue_index)
+        elif counter_type == "PKTS":
+            has_pkts += 1
+            tot_load_pkts += new_res[new_diff_key]
+
+            if not started or new_res[new_diff_key] > 0:
+              if new_res[new_diff_key] < min_load_pkts:
+                min_load_pkts = new_res[new_diff_key]
+                min_pkts_queue_index = int(queue_index)
+              if new_res[new_diff_key] > max_load_pkts:
+                max_load_pkts = new_res[new_diff_key]
+                max_pkts_queue_index = int(queue_index)
+        else:
+            print("Unknown counter type", counter_type)
+            prev_time = time
+            continue
+
+    //Detect the start and stop
+    if has_pkts == 0 or (support_bytes and ( has_bytes == 0 or has_pkts != has_bytes)) or t_queues_nb == 0 :
+        if started and n_r > 2: # and (tot_load_pkts == 0 or (support_bytes and tot_load_bytes == 0)):
+            started = False
+            break
+        started = False
+    elif diff_on_tic and queues_nb > 0:
+        started = True
+
+    if not started:
+        prev_time = time
+        prev_results = results
+        continue
+
+    n_r+=1
+    if n_r <= 2:
+        continue
+
+    if 'LOAD' in results:
+        new_r['TLOAD'].append(results['LOAD'])
+
+    if 'CPU' in results and results['CPU'] is not None:
+        new_r['TCPU'].append(results['CPU'])
+
+    if 'NCPU' in results:
+        new_r['TNCPU'].append(results['NCPU'])
+
+    if 'MAXCPU' in results:
+        new_r['TMAXCPU'].append(results['MAXCPU'])
+
+
+    new_res[cold_key_bytes] = min_bytes_queue_index
+    new_res[hot_key_bytes]  = max_bytes_queue_index
+
+    new_res[cold_key_pkts] = min_pkts_queue_index
+    new_res[hot_key_pkts]  = max_pkts_queue_index
+
+    # Compute minimum and maximum values across queues
+    assert max_load_bytes == -1 or max_load_bytes >= min_load_bytes, "Maximum load in bytes ({}) cannot be less than minimum ({})".format(max_load_bytes, min_load_bytes)
+    assert max_load_pkts == -1 or max_load_pkts >= min_load_pkts, "Maximum load in packets ({}) cannot be less than minimum ({})".format(max_load_pkts, min_load_pkts)
+    new_res["MIN-LOAD-BYTES"] = min_load_bytes
+    new_res["MAX-LOAD-BYTES"] = max_load_bytes
+    new_res["MIN-LOAD-PKTS"]  = min_load_pkts
+    new_res["MAX-LOAD-PKTS"]  = max_load_pkts
+
+    # Compute the ideal load per queue
+    new_res["IDEAL-LOAD-PER-QUEUE-BYTES"] = tot_load_bytes / t_queues_nb
+    assert min_load_bytes == -1 or new_res["MIN-LOAD-BYTES"] <= new_res["IDEAL-LOAD-PER-QUEUE-BYTES"], "Minimum load cannot be higher than ideal load"
+    assert max_load_bytes == -1 or new_res["MAX-LOAD-BYTES"] >= new_res["IDEAL-LOAD-PER-QUEUE-BYTES"], "Maximum load cannot be higher than ideal load"
+    new_res["IDEAL-LOAD-PER-QUEUE-PKTS"]  = tot_load_pkts / t_queues_nb
+    assert new_res["MIN-LOAD-PKTS"] <= new_res["IDEAL-LOAD-PER-QUEUE-PKTS"], "Min load ({}) cannot be higher than ideal load ({})".format(min_load_pkts, new_res["IDEAL-LOAD-PER-QUEUE-PKTS"])
+    assert new_res["MAX-LOAD-PKTS"] >= new_res["IDEAL-LOAD-PER-QUEUE-PKTS"], "Max load cannot be smaller than ideal load"
+
+    # Compute the ratios
+    # Min from Ideal
+    new_res["MIN-IDEAL-LOAD-BYTES-RATIO"] = -1
+    if (new_res["IDEAL-LOAD-PER-QUEUE-BYTES"] > 0):
+        new_res["MIN-IDEAL-LOAD-BYTES-RATIO"] = (abs(new_res["MIN-LOAD-BYTES"] - new_res["IDEAL-LOAD-PER-QUEUE-BYTES"]) / new_res["IDEAL-LOAD-PER-QUEUE-BYTES"]) * 100
+    new_res["MIN-IDEAL-LOAD-PKTS-RATIO"] = -1
+    if (new_res["IDEAL-LOAD-PER-QUEUE-PKTS"] > 0):
+        new_res["MIN-IDEAL-LOAD-PKTS-RATIO"] = (abs(new_res["MIN-LOAD-PKTS"] - new_res["IDEAL-LOAD-PER-QUEUE-PKTS"]) / new_res["IDEAL-LOAD-PER-QUEUE-PKTS"]) * 100
+
+    # Max from Ideal
+    new_res["MAX-IDEAL-LOAD-BYTES-RATIO"] = -1
+    if (new_res["IDEAL-LOAD-PER-QUEUE-BYTES"] > 0):
+        new_res["MAX-IDEAL-LOAD-BYTES-RATIO"] = ((new_res["MAX-LOAD-BYTES"] - new_res["IDEAL-LOAD-PER-QUEUE-BYTES"]) / new_res["IDEAL-LOAD-PER-QUEUE-BYTES"]) * 100
+    new_res["MAX-IDEAL-LOAD-PKTS-RATIO"] = -1
+    if (new_res["IDEAL-LOAD-PER-QUEUE-PKTS"] > 0):
+        new_res["MAX-IDEAL-LOAD-PKTS-RATIO"] = ((new_res["MAX-LOAD-PKTS"] - new_res["IDEAL-LOAD-PER-QUEUE-PKTS"]) / new_res["IDEAL-LOAD-PER-QUEUE-PKTS"]) * 100
+
+
+    new_res["DEV-IDEAL-LOAD-BYTES-RATIO"] = max(new_res["MAX-IDEAL-LOAD-BYTES-RATIO"], new_res["MIN-IDEAL-LOAD-BYTES-RATIO"])
+    new_res["DEV-IDEAL-LOAD-PKTS-RATIO"] = max(new_res["MAX-IDEAL-LOAD-PKTS-RATIO"], new_res["MIN-IDEAL-LOAD-PKTS-RATIO"])
+
+    # Max from Min
+    new_res["MIN-MAX-LOAD-BYTES-RATIO"] = -1
+    if new_res["MIN-LOAD-BYTES"] > 0:
+        new_res["MIN-MAX-LOAD-BYTES-RATIO"] = ((new_res["MAX-LOAD-BYTES"] - new_res["MIN-LOAD-BYTES"]) / new_res["MIN-LOAD-BYTES"]) * 100
+    new_res["MIN-MAX-LOAD-PKTS-RATIO"] = -1
+    if new_res["MIN-LOAD-PKTS"] > 0:
+        new_res["MIN-MAX-LOAD-PKTS-RATIO"] = ((new_res["MAX-LOAD-PKTS"] - new_res["MIN-LOAD-PKTS"]) / new_res["MIN-LOAD-PKTS"]) * 100
+
+    if new_res["MIN-MAX-LOAD-PKTS-RATIO"] > 2000:
+        new_res["MIN-MAX-LOAD-PKTS-RATIO"] = 2000
+
+    if verbose:
+        print("                    QUEUES: {}".format(t_queues_nb))
+        print("LEAST LOADED QUEUE INDEX (BYTES): {}".format(new_res[cold_key_bytes]))
+        print(" MOST LOADED QUEUE INDEX (BYTES): {}".format(new_res[hot_key_bytes]))
+        print("LEAST LOADED QUEUE INDEX  (PKTS): {}".format(new_res[cold_key_pkts]))
+        print(" MOST LOADED QUEUE INDEX  (PKTS): {}".format(new_res[hot_key_pkts]))
+        print("")
+        print("   MIN-LOAD-BYTES on queue: {}".format(new_res["MIN-LOAD-BYTES"]))
+        print("   MAX-LOAD-BYTES on queue: {}".format(new_res["MAX-LOAD-BYTES"]))
+        print("IDEAL-LOAD-PER-QUEUE-BYTES: {}".format(new_res["IDEAL-LOAD-PER-QUEUE-BYTES"]))
+        print("MIN-IDEAL-LOAD-BYTES-RATIO: {}".format(new_res["MIN-IDEAL-LOAD-BYTES-RATIO"]))
+        print("MAX-IDEAL-LOAD-BYTES-RATIO: {}".format(new_res["MAX-IDEAL-LOAD-BYTES-RATIO"]))
+        print("DEV-IDEAL-LOAD-BYTES-RATIO: {}".format(new_res["DEV-IDEAL-LOAD-BYTES-RATIO"]))
+        print("  MIN-MAX-LOAD-BYTES-RATIO: {}".format(new_res["MIN-MAX-LOAD-BYTES-RATIO"]))
+        print("")
+        print("   MIN-LOAD-PKTS on queue: {}".format(new_res["MIN-LOAD-PKTS"]))
+        print("   MAX-LOAD-PKTS on queue: {}".format(new_res["MAX-LOAD-PKTS"]))
+        print("IDEAL-LOAD-PER-QUEUE-PKTS: {}".format(new_res["IDEAL-LOAD-PER-QUEUE-PKTS"]))
+        print("MIN-IDEAL-LOAD-PKTS-RATIO: {}".format(new_res["MIN-IDEAL-LOAD-PKTS-RATIO"]))
+        print("MAX-IDEAL-LOAD-PKTS-RATIO: {}".format(new_res["MAX-IDEAL-LOAD-PKTS-RATIO"]))
+        print("DEV-IDEAL-LOAD-PKTS-RATIO: {}".format(new_res["DEV-IDEAL-LOAD-PKTS-RATIO"]))
+        print("  MIN-MAX-LOAD-PKTS-RATIO: {}".format(new_res["MIN-MAX-LOAD-PKTS-RATIO"]))
+        print("")
+        print("")
+
+    new_t[time] = new_res
+
+    prev_time = time
+    prev_results = results
+
+TIME_RESULTS.update(new_t)
+RESULTS.update(new_r)
+
+if verbose:
+    print("")
+    print("")
+    print("")
+    print("TIME_RESULTS: {}".format(TIME_RESULTS))
+    print("")
+    print("RESULTS: {}".format(RESULTS))
+
+
+
+
+//------- All the Click configurations ------------
+%file@p HEADER
+
+DPDKInfo(100000);
+define(
+	$iface      0000:03:00.0,
+    $dispatcherNb 1,
+	$numa       false,
+	$verbose    99,
+	$toFile     out
+);
+
+elementclass Pipeline {
+
+    input
+    -> wp :: WorkPackage(W $W, S 1, N 1, R 0, PAYLOAD false, ANALYSIS $ANALYSIS)
+    -> EtherRewrite(SRC ${p:0:mac}, DST ${client:0:mac})
+    -> output;
+}
+td0 :: ToDPDKDevice(PORT $iface, VERBOSE $verbose, BLOCKING $BLOCKING);
+
+%pipeline,queue:file@p DISPATCHER
+disp :: { [0] -> qu :: ThreadSafeQueue(CAPACITY $SINGLEDESC, BLOCKING $BLOCKING) -> {
+    $LINKS
+} => [0-$(( int($CURMAX - 1) )) ] }
+
+%pipeline,flowrr:file@p DISPATCHER
+disp :: { [0] -> rr :: FlowRRSwitch(MAX $QUEUE, LOAD $AWARE);
+$PQUEUES
+}
+
+
+
+%pipeline,rr:file@p DISPATCHER
+disp :: { [0] -> rr :: RoundRobinSwitch(MAX $QUEUE);
+$PQUEUES
+}
+
+%file@p SINGLE_IO
+fd0 :: FromDPDKDevice(PORT $iface, N_QUEUES 1, NUMA $numa, THREADOFFSET 0, MAXTHREADS $dispatcherNb, VERBOSE $verbose, PAUSE $PAUSE, NDESC $SINGLEDESC, PROMISC true, PAINT_QUEUE true, BURST $BURST);
+
+fd0
+
+%file@p PIPELINE_PROCESSER
+	-> classifier :: Classifier(12/0800, -)
+	-> Strip(14)
+    -> MarkIPHeader
+    -> disp;
+
+elementclass Processer { $thread, $active |
+    input[0]
+    -> uq :: Unqueue(ACTIVE $active, SIGNAL false)
+//    -> counter :: Counter()
+	-> check :: CheckIPHeader(VERBOSE true)
+//	-> IPPrint(LENGTH true)
+	-> Unstrip(14)
+    -> pip :: Pipeline()
+	-> [0]output;
+
+    check[1] -> [1]output;
+    StaticThreadSched(uq $thread);
+}
+
+	legit :: AverageCounterMP()
+    ->  ps :: PaintSwitch()[0-$(( $CURMAX - 1  ))] => queuecount :: {
+        $COUNTERS
+    }
+    $PROCESSER_FNT
+    -> td0;
+    dropped :: AverageCounterMP();
+    dropped -> Discard;
+
+
+classifier[1] -> Print(NonIPv4) -> Discard;
+
+$DISPATCHERS
+
+%-notime:file@p QUEUE_READ
+/*
+s :: Script(
+	TYPE ACTIVE,
+	set RUNNING 1,
+    set lastdrop 0,
+    set stime $(now),
+    set lasttime $stime,
+	// Show queue statistics only if the flag is set to 1
+	wait 5s,
+    label loop,
+    set ntime $(now),
+	set time $(sub $ntime $stime),
+    print "",
+    print "$time-RESULT-IQUEUE-PKTS-0 $(p0/counter.count)",
+	print "$time-RESULT-IQUEUE-PKTS-1 $(p1/counter.count)",
+	print "$time-RESULT-IQUEUE-PKTS-2 $(p2/counter.count)",
+	print "$time-RESULT-IQUEUE-PKTS-3 $(p3/counter.count)",
+	print "$time-RESULT-IQUEUE-PKTS-4 $(p4/counter.count)",
+	print "$time-RESULT-IQUEUE-PKTS-5 $(p5/counter.count)",
+	print "$time-RESULT-IQUEUE-PKTS-6 $(p6/counter.count)",
+	print "$time-RESULT-IQUEUE-PKTS-7 $(p7/counter.count)",
+	print "$time-RESULT-IQUEUE-PKTS-8 $(p8/counter.count)",
+	print "$time-RESULT-IQUEUE-PKTS-9 $(p9/counter.count)",
+	print "$time-RESULT-IQUEUE-PKTS-10 $(p10/counter.count)",
+	print "$time-RESULT-IQUEUE-PKTS-11 $(p11/counter.count)",
+	print "$time-RESULT-IQUEUE-PKTS-12 $(p12/counter.count)",
+	print "$time-RESULT-IQUEUE-PKTS-13 $(p13/counter.count)",
+	print "$time-RESULT-IQUEUE-PKTS-14 $(p14/counter.count)",
+	print "$time-RESULT-IQUEUE-PKTS-15 $(p15/counter.count)",
+	print "",
+	print "$time-RESULT-IQUEUE-BYTES-0 $(p0/counter.byte_count)",
+	print "$time-RESULT-IQUEUE-BYTES-1 $(p1/counter.byte_count)",
+	print "$time-RESULT-IQUEUE-BYTES-2 $(p2/counter.byte_count)",
+	print "$time-RESULT-IQUEUE-BYTES-3 $(p3/counter.byte_count)",
+	print "$time-RESULT-IQUEUE-BYTES-4 $(p4/counter.byte_count)",
+	print "$time-RESULT-IQUEUE-BYTES-5 $(p5/counter.byte_count)",
+	print "$time-RESULT-IQUEUE-BYTES-6 $(p6/counter.byte_count)",
+	print "$time-RESULT-IQUEUE-BYTES-7 $(p7/counter.byte_count)",
+	print "$time-RESULT-IQUEUE-BYTES-8 $(p8/counter.byte_count)",
+	print "$time-RESULT-IQUEUE-BYTES-9 $(p9/counter.byte_count)",
+	print "$time-RESULT-IQUEUE-BYTES-10 $(p10/counter.byte_count)",
+	print "$time-RESULT-IQUEUE-BYTES-11 $(p11/counter.byte_count)",
+	print "$time-RESULT-IQUEUE-BYTES-12 $(p12/counter.byte_count)",
+	print "$time-RESULT-IQUEUE-BYTES-13 $(p13/counter.byte_count)",
+	print "$time-RESULT-IQUEUE-BYTES-14 $(p14/counter.byte_count)",
+	print "$time-RESULT-IQUEUE-BYTES-15 $(p15/counter.byte_count)",
+    print "",
+    print $time"-RESULT-ICPU-0 "$(load 1),
+    print $time"-RESULT-ICPU-1 "$(load 2),
+    print $time"-RESULT-ICPU-2 "$(load 4),
+    print $time"-RESULT-ICPU-3 "$(load 5),
+    print $time"-RESULT-ICPU-4 "$(load 6),
+    print $time"-RESULT-ICPU-5 "$(load 6),
+    print $time"-RESULT-ICPU-6 "$(load 7),
+    print $time"-RESULT-ICPU-7 "$(load 8),
+    print $time"-RESULT-ICPU-8 "$(load 9),
+    print $time"-RESULT-ICPU-9 "$(load 10),
+    print $time"-RESULT-ICPU-10 "$(load 11),
+    print $time"-RESULT-ICPU-11 "$(load 12),
+    print $time"-RESULT-ICPU-12 "$(load 13),
+    print $time"-RESULT-ICPU-13 "$(load 14),
+    print $time"-RESULT-ICPU-14 "$(load 15),
+    print $time"-RESULT-ICPU-15 "$(load 16), 
+    print "$(load)",
+    set ncpu $(gt_vec 0.05  $(load)),
+    print "$ncpu",
+    print "$time-RESULT-LOAD $(add $(load))",
+    print "$time-RESULT-CPU $(div $(add $(load)) $ncpu)",
+    print "$time-RESULT-NCPU $ncpu",
+    print "$time-RESULT-MAXCPU $(count $(load))",
+    set packets $(legit.count),
+    set bytes $(legit.byte_count),
+    set nbytes $(sub $bytes $lastbytes),
+    set npackets $(sub $packets $lastpackets),
+	set diff $(sub $ntime $lasttime),
+    set lasttime $ntime,
+    print "$time-RESULT-DUTTHROUGHPUT $(div $(mul 8 $(add $nbytes $(mul $npackets 24) )) $diff)",
+    set lastbytes $bytes,
+    set lastpackets $packets,
+    set drop $(fd0.hw_dropped),
+    print "$time-RESULT-MISSED $(sub $drop $lastdrop)",
+	wait ${REPORT_PERIOD}s,
+	goto loop $(eq $RUNNING 1),
+);
+*/
+
+%file@p rx-process.click
+ //!Keep in sync with pipeline
+    ->  ps :: PaintSwitch()[0-$(( $CURMAX - 1  ))] => queuecount :: {
+    $COUNTERS
+   }
+
+
+%file@p rx-metron.click
+balancer :: DeviceBalancer(DEV fd0, METHOD "metron", CONFIG $rules, CPUS $queuesNb, VERBOSE $BVERBOSE, TARGET $METRONTARGET, STARTCPU -1, UNDERLOAD 0.35, OVERLOAD 0.65, AUTOSCALE $AUTOSCALE, CYCLES $CYCLES, MIN_MOVEMENT $MINMVMT, TIMER $BALANCE_PERIOD);
+
+StaticThreadSched(balancer $BTHREAD)
+
+fd0
+
+%file@p rx-drss.click
+balancer :: DeviceBalancer(DEV fd0, METHOD "${TARGETMETHOD}", VERBOSE $BVERBOSE, TIMER $BALANCE_PERIOD, CPUS $queuesNb, TARGET $METRONTARGET, STARTCPU $STARTCPU, LOAD 0.90, RETA_SIZE $RETA_SIZE $MANAGER_OPT);
+
+
+StaticThreadSched(balancer $BTHREAD)
+StaticThreadSched(a $MONTHREAD);
+
+
+fd0
+
+
+%file@p rx-pianorss.click
+balancer :: DeviceBalancer(DEV fd0, METHOD "${TARGETMETHOD}", VERBOSE $BVERBOSE, TIMER $BALANCE_PERIOD, CPUS $queuesNb, TARGET $METRONTARGET, STARTCPU -1, LOAD 0.90, RSSCOUNTER agg, AUTOSCALE $AUTOSCALE, CYCLES $CYCLES, RETA_SIZE $RETA_SIZE, IMBALANCE_THRESHOLD $IMBTHRESH, DANCER $DANCER, NUMA $DBNUMA $MANAGER_OPT ); //VERIFIER RSS
+
+
+StaticThreadSched(balancer $BTHREAD)
+/*
+//For RSS video
+a :: Script(
+    TYPE ACTIVE,
+    set RUNNING 1,
+    // Show queue statistics only if the flag is set to 1
+    set start $(now),
+    set lasttime $start,
+    set t 0.1,
+    set h 0.2,
+    label loop,
+    print "Wait for $t sec",
+    wait $t,
+    set time $(now),
+    set difftime $(sub $time $start),
+    print "Writing stats for $difftime...",
+    write agg.write_text_file "AGG-$difftime.txt",
+    set t $(sub $h $difftime),
+    set h $(add $h 0.1),
+    set lasttime $time,
+    goto loop $(eq $RUNNING 1),
+);
+*/
+StaticThreadSched(a $MONTHREAD);
+
+
+fd0
+//    -> rss :: RSSVerifier(MASK 511, CPU $QUEUE)
+      -> agg :: AggregateCounterVector(MASK $(( int($RETA_SIZE - 1) )) )
+
+%file@p rx-none.click
+
+fd0
+//    -> Print(FD0, -1)
+
+%file@p FD_IO
+fd0 :: FromDPDKDevice(PORT $iface, N_QUEUES $queuesNb, NUMA $numa, THREADOFFSET 0, MINTHREADS $threadsNb, MAXTHREADS $threadsNb, VERBOSE $verbose, PAUSE $PAUSE, MODE flow_dir, FLOW_DIR_RULES_FILE $rules, NDESC $NDESC, PROMISC true, PAINT_QUEUE true, ISOLATE $ISOLATE, BURST $BURST);
+
+
+%file@p PARALLEL_PROCESSER
+	-> classifier :: Classifier(12/0800, -)
+	-> Strip(14)
+	-> check :: CheckIPHeader(VERBOSE true)
+//	-> IPPrint(LENGTH true)
+	-> Unstrip(14)
+    -> pip :: Pipeline()
+	-> legit :: AverageCounterMP()
+$PROCESSER_FNT
+	-> td0;
+
+dropped :: AverageCounterMP();
+
+classifier[1] -> Print(NonIPv4) -> dropped;
+check[1] -> dropped;
+dropped -> Discard;
+
+
+
+%-notime:file@p DEV_READ
+s :: Script(
+	TYPE ACTIVE,
+	set RUNNING 1,
+    set launched 0,
+    set lastdrop 0,
+    set stime $(now),
+    set lasttime $stime,
+	// Show queue statistics only if the flag is set to 1
+	wait 5s,
+    label loop,
+    set ntime $(now),
+	set time $(sub $ntime $stime),
+	print "",
+	
+    print "",
+
+//    read fd0.queue_count,
+  
+  $DISPSTATS
+
+    set ncpu $(gt_vec 0.05  $(load)),
+    goto ctn $(eq $launched 1),
+    goto ctn $(eq $ncpu 0),
+    print "EVENT LOAD_START",
+    set launched 1,
+    print "Launching migration driver!",
+    write migratedrv.run 1,
+    label ctn,
+    set packets $(legit.count),
+    set bytes $(legit.byte_count),
+    set nbytes $(sub $bytes $lastbytes),
+    set npackets $(sub $packets $lastpackets),
+	set diff $(sub $ntime $lasttime),
+    set lasttime $ntime,
+    print "$time-RESULT-DUTTHROUGHPUT $(div $(mul 8 $(add $nbytes $(mul $npackets 24) )) $diff)",
+    set lastbytes $bytes,
+    set lastpackets $packets,
+    print "$time-RESULT-LOAD $(add $(load))",
+    print "$time-RESULT-CPU $(div $(add $(load)) $ncpu)",
+    print "$time-RESULT-NCPU $ncpu",
+    print "$time-RESULT-MAXCPU $(count $(load))",
+    set drop $(fd0.hw_dropped),
+    print "$time-RESULT-MISSED $(sub $drop $lastdrop)",
+	wait ${REPORT_PERIOD}s,
+	goto loop $(eq $RUNNING 1),
+);
+
+%file@p RSS_IO
+fd0 :: FromDPDKDevice(PORT $iface, N_QUEUES $queuesNb, NUMA $numa, THREADOFFSET 0, MINTHREADS $threadsNb, MAXTHREADS $threadsNb, VERBOSE $verbose, PAUSE $PAUSE, NDESC $NDESC, RSS_AGGREGATE 1, PROMISC $PROMISC, PAINT_QUEUE true, BURST $BURST, MAX_RSS $QUEUE);
+
+%file@p FOOTER
+
+$MIGRATEDRV
+
+DriverManager(
+    read fd0.rss_reta,
+    print "EVENT RX_STARTED",
+	pause,
+	print "EVENT RX_STOPPED",
+	print "",
+	print "   IPv4: "$(legit.count),
+	print "Dropped: "$(dropped.count),
+    print "RESULT-OUTOFORDER $(fwp.outoforder)",
+    print "RESULT-OUTOFORDERPC $(div $(fwp.outoforder) $(fd0.count))",
+    print "RESULT-FWMISSED $(fd0.hw_dropped)",
+    print "RESULT-FWMISSEDPC $(div $(fd0.hw_dropped) $(add $(fd0.hw_dropped) $(fd0.hw_count)))",
+    print "RESULT-FWDROPPED $(dropped.count)",
+    print "RESULT-FWTHROUGHPUT $(legit.link_rate)",
+    print "RESULT-FWDISAPEAR $(sub $(fd0.count) $(legit.count))",
+    print "RESULT-FWHWDISAPEAR $(sub $(fd0.hw_count) $(legit.count))",
+    read fd0.xstats,
+    read balancer.run_stats,
+    print "RESULT-RUN-IMB $(balancer.run_stats_imbalance_first)",
+    print "RESULT-RUN-TIME $(balancer.run_stats_time_first)",
+	print "   Sent: "$(td0.count),
+    read useful_kcycles,
+    set cycles $(add $(useful_kcycles)),
+    print "RESULT-KCYCLES $cycles",
+    print "RESULT-KCYCLESPP $(div $cycles $(td0.count))",
+    print "RESULT-ACYCLES $(pip/wp.cycles_per_work)",
+    print "RESULT-RSSSIZE $(fd0.rss_reta_size)",
+	print > $toFile $(fd0.xstats),
+	stop
+);
+
+StaticThreadSched(r $MONTHREAD)
+StaticThreadSched(s $MONTHREAD)

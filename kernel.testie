@@ -1,0 +1,178 @@
+%info
+Run RSS++ in kernel-mode
+
+This was used for the iPerf2 heatmap experiments
+
+You must :
+- Have a correct NPF cluster configuration
+- Have on "server" our modified Kernel !
+
+This script will :
+- Download and compile our modified iPerf2 version
+- Run iperf 2 server on the server, and the client on client.
+With the given parameters. And record CPU usage/rtt.
+
+
+//-------------------------------------------------------------
+//----------- Configuration of NPF ----------------------------
+//-------------------------------------------------------------
+%config
+//Number of runs. One for the heatmap, as of course the average of many runs is balanced, with RTT we use more though (through command line)
+n_runs=1
+
+//Script timeout
+timeout=120
+
+//-------------------------------------------------------------
+//----------- Things you do not want to know about ------------
+//-------------------------------------------------------------
+//Accept all zero values results. Whatever.
+accept_zero={result}
+//Do not addition values (eg two points of RTT at the same time should be an average)
+result_add=0
+//-------------------------------------------------------------
+
+
+//-------------------------------------------------------------
+//----------- Variables ---------------------------------------
+//-------------------------------------------------------------
+%variables
+
+//Numbers of CPUs to use. We made the choice to not present NUMA here
+CPU=18
+
+//CPU frequency
+FREQ=2300
+
+//RSS++ minimal period (-> 1/max frequency)
+TIMER=200
+
+//Reta size, only 128 allowed with MLX5
+RETA=128
+
+//Time of each steps (step 0 : sharded, step 1 : RSS++, step 2 : autoscale)
+STEP=10
+
+//Numbers of flows
+FLOWS=40
+
+//Target CPU load
+TARGET=0.75
+
+//Verbosity level
+VERBOSE=0
+
+//TCP congestion control
+CONGESTION=cubic
+
+//Option to not use RSS++. Set to 1 to disable RSS++ activation. It is important to verify that the RTT variation is not just an effect of time. And it is not.
+NORSSPP=0
+
+//UDP. IPerf did not like it much, not sure what was the problem
+udp:UDPSRV=-u -b 90G
+udp:UDPCLI=-u
+-udp:UDPCLI=
+-udp:UDPSRV=
+
+%include ./testie.d/common.testie
+%include ./testie.d/traces.testie
+
+//Import a NPF script that will track the cpuload. Will be in modules/cpuload.testie in the NPF repository
+%import@server cpuload delay=2
+
+//------------------------------------------------------
+//-------- IPerf client ------------------
+//----------------------------------------------------
+%script@client delay=3 deps=iperf-rsspp
+which iperf
+sudo ifconfig dpdk0 10.220.0.1 netmask 255.255.255.0
+sudo sysctl -w net.ipv4.tcp_congestion_control=$CONGESTION
+taskset -a -c 0-$CPU iperf -c 10.220.0.5 -p 8822 -P $FLOWS -t 200 $UDPCLI --reportstyle C -e -i 1 | tee stats.csv
+
+//At the end of the test, parse stats.csv
+%exit@client
+python3 ${NPF_TESTIE_PATH}/iperf_parse.py
+
+//------------------------------------------------------
+//-------- Server scripts --------------------------
+//------------------------------------------------------
+%script@server sudo=true deps=iperf-rsspp name=IPerfServer
+echo $PATH
+which iperf
+//Apply frequency, and chosen parameters
+(cd ${LINUX_PATH}/tools/power/cpupower/ &&  LD_LIBRARY_PATH=. ${LINUX_PATH}/tools/power/cpupower/cpupower frequency-set -u ${FREQ}M -d ${FREQ}M)
+ifconfig ${server:0:ifname} 10.220.0.5 netmask 255.255.255.0
+sysctl -w net.ipv4.tcp_congestion_control=$CONGESTION
+ethtool -L ${server:0:ifname} combined $CPU //Number of queues
+ethtool -X ${server:0:ifname} equal $CPU //Hashing of RSS
+set_irq_affinity.sh ${server:0:ifname}
+bash server.sh
+
+%file@server server.sh
+killall -9 iperf
+//Launch one iperf server per CPU
+for i in {0..$CPU} ; do 
+    sleep 0.1
+    iperf -s -E -H -A -a $i $UDPSRV -e -p 8822 &
+done
+wait
+echo "Server finished"
+
+//Own timing probes. Did not really work better than Linux's RTT tracker in the end
+%script@client autokill=false
+cd /home/tom/workspace/rss-experiments/timing
+./client 10.220.0.5 8821
+
+//Run RSS++ itself
+%script@server sudo=true delay=1 deps=rsspp
+cp script.click ~/npf/build/metron
+cd ~/npf/build/metron
+click -j $CPU script.click CLICK_PATH=$(dirname $(which click))
+
+//RSS++ configuration file :
+%file@server script.click
+fd :: FromDevice(${server:0:ifname}, ACTIVE false) -> Discard;
+
+DriverManager(
+    set start $(now),
+    goto end $(eq $NORSSPP 1),
+    wait 5s,
+    print "$(now)-RESULT-EVENT 0",
+    wait ${STEP}s,
+    print "$(now)-RESULT-EVENT 1",
+    write db.active 1,
+    wait ${STEP}s,
+    print "$(now)-RESULT-EVENT 2",
+    write db.autoscale 1,
+    wait ${STEP}s,
+    print "$(now)-RESULT-EVENT 3",
+    wait 2s,
+    print "RESULT-TTIME $(sub $(now) $start)",
+    read balancer.run_stats,
+    goto finish,
+    label end,
+    wait 32s,
+    label finish,
+    print "Going down",
+    write db.active 0,
+    stop
+    );
+
+db :: DeviceBalancer(
+    METHOD pianorss,
+    DEV fd,
+    CPUS $CPU,
+    RSSCOUNTER xdp,
+    CYCLES realcpu, 
+    RETA_SIZE $RETA, 
+    VERBOSE $VERBOSE,
+    TARGET_LOAD $TARGET,
+    TIMER $TIMER, 
+    TIMER_MAX 1000,
+    IMBALANCE_THRESHOLD 0.02,
+    AUTOSCALE 0,
+    ACTIVE false);
+
+StaticThreadSched(db 17) //Device balancer will run on the last core
+
+xdp :: XDPLoader(PATH "$CLICK_PATH/conf/bpf/xdp_count.o", DEV ${server:0:ifname}, CLEAN false)
