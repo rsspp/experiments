@@ -94,6 +94,7 @@ var_ticks+={GEN_FLOWS:1+4+16+64+256+1024}
 wpf:graph_lines={-,:}
 
 %include testie.d/common.testie
+%include testie.d/traces.testie
 
 //---------------------------------------
 //-------- VARIABLES -----
@@ -133,9 +134,6 @@ fast,rate:GEN_RATE=20000000000
 BALANCE_PERIOD=500
 pianorss:BALANCE_PERIOD=100
 
-//TODO : remove these dependencies
-WORKING_DIR=/home/tom/workspace/metron-testbed/metron-blackbox-metron/load-imbalance
-CLICK_EXEC=/home/tom/workspace/fastclick/bin/click
 
 //Deprecated, but we never know...
 FORCE_LEN=0
@@ -268,10 +266,8 @@ DBNUMA?=0
 
 BVERBOSE?=0
 PIPELINE?=0
-PKTGEN_SCRIPT=EXPAND(${WORKING_DIR}/tx-pcap.click)
 
 //List of files to pass to click
-caida18|kth:PKTGEN_SCRIPT=EXPAND(${WORKING_DIR}/tx-pcap-transformed.click)
 rss:RSS_SPLITTER_SCRIPT=RSS_IO rx-drss.click rx-process.click PARALLEL_PROCESSER DEV_READ
 pipeline:RSS_SPLITTER_SCRIPT=DISPATCHER SINGLE_IO PIPELINE_PROCESSER DEV_READ
 sprayer|staticmetron:RSS_SPLITTER_SCRIPT=FD_IO rx-none.click rx-process.click PARALLEL_PROCESSER DEV_READ
@@ -367,6 +363,7 @@ killall -9 click
 sleep 1
 cat HEADER $RSS_SPLITTER_SCRIPT FOOTER > C
 cat C
+echo "Executing click at path $(which click)"
 $GDB click --dpdk -l 0-35 --log-level 99 -v -w ${self:0:pci},rx_vec_en=$RX_VEC_EN -- C queuesNb=$QUEUE threadsNb=$QUEUE numa=false toFile=$RSS_SPLITTER_OUT iface=${self:0:pci} rules=$RULES
 err=$?
 echo "Finished with code $err"

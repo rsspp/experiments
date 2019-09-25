@@ -57,7 +57,7 @@ STEP=10
 FLOWS=40
 
 //Target CPU load
-TARGET=0.75
+TARGET=0.85
 
 //Verbosity level
 VERBOSE=0
@@ -85,7 +85,7 @@ udp:UDPCLI=-u
 //----------------------------------------------------
 %script@client delay=3 deps=iperf-rsspp
 which iperf
-sudo ifconfig dpdk0 10.220.0.1 netmask 255.255.255.0
+sudo ifconfig ${client:0:ifname} 10.220.0.1 netmask 255.255.255.0
 sudo sysctl -w net.ipv4.tcp_congestion_control=$CONGESTION
 taskset -a -c 0-$CPU iperf -c 10.220.0.5 -p 8822 -P $FLOWS -t 200 $UDPCLI --reportstyle C -e -i 1 | tee stats.csv
 

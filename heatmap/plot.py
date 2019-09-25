@@ -78,8 +78,8 @@ fig, ax1 = plt.subplots()
 #bw = np.genfromtxt("results-3/BW.csv")
 #rtt = np.genfromtxt("results-3/RTT.csv")
 
-bw = pandas.read_csv("results-3/BW.csv", header=None, engine="python",delim_whitespace=True,index_col=False).to_numpy()
-rtt = pandas.read_csv("results-3/RTT.csv", header=None, engine="python",delim_whitespace=True,index_col=False).to_numpy()
+bw = pandas.read_csv("results/BW.csv", header=None, engine="python",delim_whitespace=True,index_col=False).to_numpy()
+rtt = pandas.read_csv("results/RTT.csv", header=None, engine="python",delim_whitespace=True,index_col=False).to_numpy()
 
 s=bw[:,0]
 speed=bw[:,1] / 1000000000
