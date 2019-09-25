@@ -91,7 +91,7 @@ taskset -a -c 0-$CPU iperf -c 10.220.0.5 -p 8822 -P $FLOWS -t 200 $UDPCLI --repo
 
 //At the end of the test, parse stats.csv
 %exit@client
-python3 ${NPF_TESTIE_PATH}/iperf_parse.py
+python3 iperf_parse.py
 
 //------------------------------------------------------
 //-------- Server scripts --------------------------
@@ -119,7 +119,7 @@ wait
 echo "Server finished"
 
 //Own timing probes. Did not really work better than Linux's RTT tracker in the end
-%script@client autokill=false
+%script@client autokill=false sleep=4
 cd /home/tom/workspace/rss-experiments/timing
 ./client 10.220.0.5 8821
 
@@ -127,7 +127,7 @@ cd /home/tom/workspace/rss-experiments/timing
 %script@server sudo=true delay=1 deps=rsspp
 cp script.click ~/npf/build/metron
 cd ~/npf/build/metron
-click -j $CPU script.click CLICK_PATH=$(dirname $(which click))
+click -j $CPU script.click CLICK_PATH=$(dirname $(which click))/../
 
 //RSS++ configuration file :
 %file@server script.click
@@ -176,3 +176,44 @@ db :: DeviceBalancer(
 StaticThreadSched(db 17) //Device balancer will run on the last core
 
 xdp :: XDPLoader(PATH "$CLICK_PATH/conf/bpf/xdp_count.o", DEV ${server:0:ifname}, CLEAN false)
+
+// File to parse iperf's output in a recognisable NPF format
+%file iperf_parse.py
+import numpy as np
+import csv
+from collections import OrderedDict
+from datetime import datetime
+
+s = csv.reader(open("stats.csv",'r'), delimiter=',')
+
+times = OrderedDict()
+for line in s:
+    times.setdefault(line[0],[]).append(line)
+
+lastt = -1
+for time, lines in times.items():
+    bws = [float(line[8]) for line in lines if line[2] != "0"]
+    retrs = [float(line[11]) for line in lines if line[2] != "0"]
+    rtts = [float(line[12]) for line in lines if line[2] != "0"]
+    bw = np.sum(bws)
+    retr = np.sum(retrs)
+    t = lines[0][0]
+    t = datetime.strptime(t,'%Y%m%d%H%M%S')
+    if lastt == -1:
+        lastt = t
+
+    diff=(t-lastt).total_seconds()
+    if False:
+        print("%s : %f med %f,%f flows" % (diff,(bw / 1000000000),np.median(bws), len(bws)))
+    else:
+        print("stime-%f-RESULT-BW %d" % (diff, bw))
+        print("stime-%f-RESULT-RETR %d" % (diff, retr))
+        print("stime-%f-RESULT-RTT95 %d" % (diff, np.percentile(rtts,95)))
+        print("stime-%f-RESULT-BW95 %d" % (diff, np.percentile(bws,95)))
+        print("stime-%f-RESULT-BWDEV %d" % (diff, np.std(bws)))
+        for i,rtt in enumerate(rtts):
+            if (rtt <= 5):
+                print(lines[i])
+            print("stime-%f-RESULT-RTT %d" % (diff, rtt))
+        for bw in bws:
+            print("stime-%f-RESULT-ABW %d" % (diff, bw))
