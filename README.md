@@ -19,8 +19,19 @@ Download NPF at (https://github.com/tbarbette/npf). Install python3 and python3-
 You must define the servers and the NICs to be used in the cluster folder. This is one of our files:
 cluster/server0.node
 ```
+path=/home/tom/npf/
+addr=nslrack11.ssvl.kth.se
+//nfs=0
+
+0:ifname=dpdk0
+0:pci=0000:17:00.0
+0:mac=50:6b:4b:43:88:ca
+
+1:ifname=dpdk1
+1:pci=0000:17:00.1
+1:mac=50:6b:4b:43:88:cb
 ```
-It is easer to have NPF in an NFS or other mechanism to share a similar folder between the two maxhines. If not, add nfs=0 at the bottom of the file.
+It is easer to have NPF in an NFS or other mechanism to share a similar folder between the two maxhines. If not, uncomment nfs=0 at the bottom of the file.
 
 Then, define the required variables to find NPF from this repository in includes/Makefile.inc. Specifically do not forget to define roles, such as SERVER=server1 and CLIENT=server0.
 
