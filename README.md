@@ -59,8 +59,8 @@ The following folders contain the Makefile for the experiment, that basically ca
  * nat: Figure 15 with the realistic NAT+FW experiment
  
 #### What if something goes wrong?
-You may append some NPF parameters with the NPF_FLAGS variable such as `make test NPF_FLAGS="--force-retest --show-cmd --show-files"`.
---force-retest will force the test to be done again, even if NPF has some results in cache. --show-cmd will show commands that are launched on the client and server, and --show-files will show generated file (such as Click configuration).
+You may append some NPF parameters with the NPF_FLAGS variable such as `make test NPF_FLAGS="--force-retest --show-cmd --show-files --config n_runs=1 --preserve-temporaries"`.
+--force-retest will force the test to be done again, even if NPF has some results in cache. --show-cmd will show commands that are launched on the client and server, --show-files will show generated file (such as Click configuration), n_runs=1 configuration parameter reduce the number of runs per tests (variables) to 1, while --preserve-temporaries will keep temporary files, scripts, etc so you can launch the test yourself if need be.
 
 ### Other
  * includes: Parameters for experiments
