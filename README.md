@@ -31,7 +31,7 @@ addr=nslrack11.ssvl.kth.se
 1:pci=0000:17:00.1
 1:mac=50:6b:4b:43:88:cb
 ```
-It is easer to have NPF in an NFS or other mechanism to share a similar folder between the two maxhines. If not, uncomment nfs=0 at the bottom of the file.
+It is easer to have NPF in an NFS or other mechanism to share a similar folder between the two machines, under the same path. If you don't have such a setup, uncomment nfs=0 at the bottom of the file.
 
 Then, define the required variables to find NPF from this repository in includes/Makefile.inc. Specifically do not forget to define roles, such as SERVER=server1 and CLIENT=server0.
 
@@ -57,6 +57,10 @@ The following folders contain the Makefile for the experiment, that basically ca
  * shared: Figure 13 showing the importance of flow-awareness with various concurrency models 
  * migration: Figure 14 about state migration
  * nat: Figure 15 with the realistic NAT+FW experiment
+ 
+#### What if something goes wrong?
+You may append some NPF parameters with the NPF_FLAGS variable such as `make test NPF_FLAGS="--force-retest --show-cmd --show-files"`.
+--force-retest will force the test to be done again, even if NPF has some results in cache. --show-cmd will show commands that are launched on the client and server, and --show-files will show generated file (such as Click configuration).
 
 ### Other
  * includes: Parameters for experiments
