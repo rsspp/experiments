@@ -74,6 +74,10 @@ udp:UDPCLI=-u
 -udp:UDPCLI=
 -udp:UDPSRV=
 
+//Add --tags gdb to run RSS++ GDB. But I don't see why you would do that. There is, of course, no bugs in RSS++!
+gdb:GDB=gdb -ex run -ex "signal 2" -ex "bt" -batch -args
+GDB?=
+
 %include ./testie.d/common.testie
 %include ./testie.d/traces.testie
 
@@ -127,7 +131,7 @@ cd /home/tom/workspace/rss-experiments/timing
 %script@server sudo=true delay=1 deps=rsspp
 cp script.click ~/npf/build/metron
 cd ~/npf/build/metron
-click -j $CPU script.click CLICK_PATH=$(dirname $(which click))/../
+$GDB click -j $CPU script.click CLICK_PATH=$(dirname $(which click))/../
 
 //RSS++ configuration file :
 %file@server script.click
