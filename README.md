@@ -66,6 +66,7 @@ The following folders contain the Makefile for the experiment, that basically ca
 ### Other
  * includes: Parameters for experiments
  * testie.d: Parts of the two main testie files
+ * pcap: Tools to prepare pcap files. Transform a PCAP file for Sprayer simulation (copying checksum to destination mac address) and increasing trace speed
  
 What if something goes wrong?
 -----------------------------
