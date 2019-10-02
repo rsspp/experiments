@@ -177,7 +177,7 @@ db :: DeviceBalancer(
     AUTOSCALE 0,
     ACTIVE false);
 
-StaticThreadSched(db 17) //Device balancer will run on the last core
+StaticThreadSched(db $(($CPU - 1)) ) //Device balancer will run on the last core
 
 xdp :: XDPLoader(PATH "$CLICK_PATH/conf/bpf/xdp_count.o", DEV ${server:0:ifname}, CLEAN false)
 
