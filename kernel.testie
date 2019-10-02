@@ -54,10 +54,10 @@ RETA=128
 STEP=10
 
 //Numbers of flows
-FLOWS=40
+FLOWS=100
 
 //Target CPU load
-TARGET=0.85
+TARGET=0.9
 
 //Verbosity level
 VERBOSE=0
