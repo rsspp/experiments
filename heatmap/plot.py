@@ -77,7 +77,7 @@ fig, ax1 = plt.subplots()
 
 #bw = np.genfromtxt("results-3/BW.csv")
 #rtt = np.genfromtxt("results-3/RTT.csv")
-
+#ax1 = plt.gca()
 bw = pandas.read_csv("results/BW.csv", header=None, engine="python",delim_whitespace=True,index_col=False).to_numpy()
 rtt = pandas.read_csv("results-3/RTT.csv", header=None, engine="python",delim_whitespace=True,index_col=False).to_numpy()
 
@@ -128,11 +128,14 @@ t = np.arange(int(tm / 5) + 1) * 5
 ax2.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: "%d" % (x)))
 
 ax2.set_xticks(t)
-fig.tight_layout()  # otherwise the right y-label is slightly clipped
-print("RTT mean/std of RSS is ", np.nanmean(rtts[0:step -1 ]), np.nanstd(rtts[0:step -1]))
+plt.tight_layout()  # otherwise the right y-label is slightly clipped
+plt.subplots_adjust(top=0.78)
+print("RTT mean/std of RSS is ", np.nanmean(rtts[2:step -1 ]), np.nanstd(rtts[2:step -1]))
 print("RTT mean/std of RSS++ is ", np.nanmean(rtts[step:2*step-1]), np.nanstd(rtts[step:2*step-1]))
-rttmid = rtt[ rtt[:,0] > (step + int(step / 2) + 2) & (rtt[:,0] < 2*step-1 + 2),1:]
+rttmid = rtt[( rtt[:,0] > (step + int(step / 2) + 2)) & (rtt[:,0] < 2*step+ 2),1:]
+rttem = rtt[ (rtt[:,0] > (step + (step *0.8) + 2)) & (rtt[:,0] < 2*step + 2),1:]
 print("RTT mean/std of RSS++ (after %d sec) is " % (step *1.5), np.nanmean(rttmid), np.nanstd(rttmid))
+print("RTT mean/std of RSS++ (after %d sec) is " % (step *1.9), np.nanmean(rttem), np.nanstd(rttem))
 print("RTT mean/std of RSS++ auto is ", np.nanmean(rtts[2*step:,3*step]), np.nanstd(rtts[2*step:3*step]))
 
 if dual:
