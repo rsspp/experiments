@@ -2,4 +2,11 @@ NPF_PATH=/home/tom/npf/
 NPF_SERVER=nslrack14-100G,nic=1
 NPF_CLIENT=nslrack11-100G,nic=0
 
-NPF_FLAGS=
+NPF_FLAGS="--show-full"
+
+#A quick list of NPF flags you might like:
+# --show-full will show all output from commands as they run
+# --show-cmd will show the commands being launched (and where)
+# --preserve-temporaries will keep the temp generated files and results under npf folder
+# --config n_runs=1 will set the config variable n_runs to 1, to limit the number of runs being done, eg when something breaks no need to repeat it 3 times. You can also overwrite other config variables such as timeout, and a sh!t ton of graphing options
+#  --variables X={1,7} not to be put here, but allow to overwrite X to the given value. Eg try CPU=7

@@ -208,7 +208,7 @@ wpf_pwrite:WPF=Write
 wpf_seq:WPF=Sequential write
 
 lowfreq:FREQ=1000
-
+dump:DODUMP=1
 
 
 //----------Late variables----------
@@ -222,7 +222,7 @@ dynamicmetron|staticmetron:ISOLATE=0
 
 -fastiteration,iterative:ITERATION_TIME=1
 dynaw:W=EXPAND( $(( int( ($WBASE / 8) * $QUEUE) )) )
-dump:LATENCYDUMP=EXPAND(/home/tom/workspace/rss-experiments/loadvslat/loadvslat-kthmorning-cx5/lat-${NPF_REPO}-${TIMING_FNT_BASE}.csv)
+dump:LATENCYDUMP=EXPAND(${NPF_OUTPUT_PATH}/lat-${NPF_REPO}-${TIMING}.csv)
 ANALYSIS?=0
 fnt:TIMING_FNT=EXPAND( min($TIMING_FNT_BASE,$TIMING_FNT_BASE*max(0,sin(min(min(((x+1)/5),1), 1 - max((x-50)/5,0)  )*(pi/2)))) )
 sfnt:TIMING_FNT=10+min(90,90*max(0,sin(min(min((x/15),1), 1 - max((x-30)/30,0)  )*(pi/2))))
@@ -591,7 +591,9 @@ for time, results in sorted(TIME_RESULTS.items()):
 
     prev_time = time
     prev_results = results
-
+if 'DIFFBYTES' in new_r:
+    del new_r['DIFFBYTES']
+    del new_r['DIFFPKTS']
 TIME_RESULTS.update(new_t)
 RESULTS.update(new_r)
 

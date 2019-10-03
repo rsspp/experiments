@@ -100,7 +100,7 @@ else:
     h = np.max(rtts) * (1.02 / 0.93)
     ax2 = ax1
 
-print("Average BW : %d" % np.mean(speed))
+print("Average BW : %.02f" % np.mean(speed))
 aarrow("RSS", 0,step,h)
 aarrow("RSS++\n(Autoscale off)", step + 1,2*step,h)
 aarrow("RSS++\n(Autoscale on)", 2*step + 1,3*step,h)
@@ -130,13 +130,13 @@ ax2.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: "%d" % (x)))
 ax2.set_xticks(t)
 plt.tight_layout()  # otherwise the right y-label is slightly clipped
 plt.subplots_adjust(top=0.78)
-print("RTT mean/std of RSS is ", np.nanmean(rtts[2:step -1 ]), np.nanstd(rtts[2:step -1]))
-print("RTT mean/std of RSS++ is ", np.nanmean(rtts[step:2*step-1]), np.nanstd(rtts[step:2*step-1]))
+print("RTT mean/std/99 of RSS (after 3 seconds) is ", np.nanmean(rtts[3:step -1 ]), np.nanstd(rtts[3:step -1]), np.nanpercentile(rtts[3:step-1],99))
+print("RTT mean/std/99 of RSS++ is ", np.nanmean(rtts[step:2*step-1]), np.nanstd(rtts[step:2*step-1]))
 rttmid = rtt[( rtt[:,0] > (step + int(step / 2) + 2)) & (rtt[:,0] < 2*step+ 2),1:]
 rttem = rtt[ (rtt[:,0] > (step + (step *0.8) + 2)) & (rtt[:,0] < 2*step + 2),1:]
-print("RTT mean/std of RSS++ (after %d sec) is " % (step *1.5), np.nanmean(rttmid), np.nanstd(rttmid))
-print("RTT mean/std of RSS++ (after %d sec) is " % (step *1.9), np.nanmean(rttem), np.nanstd(rttem))
-print("RTT mean/std of RSS++ auto is ", np.nanmean(rtts[2*step:,3*step]), np.nanstd(rtts[2*step:3*step]))
+print("RTT mean/std/99 of RSS++ (after %d sec) is " % (step *1.5), np.nanmean(rttmid), np.nanstd(rttmid), np.nanpercentile(rttmid,99))
+print("RTT mean/std/99 of RSS++ (after %d sec) is " % (step *1.9), np.nanmean(rttem), np.nanstd(rttem), np.nanpercentile(rttem,99))
+print("RTT mean/std/99 of RSS++ auto is ", np.nanmean(rtts[2*step:,3*step]), np.nanstd(rtts[2*step:3*step]),np.nanpercentile(rtts[2*step:3*step],99))
 
 if dual:
     plt.savefig('rttbw.pdf')

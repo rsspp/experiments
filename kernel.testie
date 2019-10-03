@@ -123,9 +123,9 @@ wait
 echo "Server finished"
 
 //Own timing probes. Did not really work better than Linux's RTT tracker in the end
-%script@client autokill=false sleep=4
-cd /home/tom/workspace/rss-experiments/timing
-./client 10.220.0.5 8821
+//%script@client autokill=false sleep=4
+//cd /home/tom/workspace/rss-experiments/timing
+//./client 10.220.0.5 8821
 
 //Run RSS++ itself
 %script@server sudo=true delay=1 deps=rsspp

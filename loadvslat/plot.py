@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.lines import Line2D
@@ -8,6 +10,7 @@ from common import *
 from collections import OrderedDict
 import pandas
 from matplotlib.markers import MarkerStyle
+import traceback
 
 series = ["loadvslat-kthmorning-cx5/RSS" ,  "loadvslat-kthmorning-cx5/RSSPP"]
 #, "kthmorning-cx5/Metron" ]
@@ -29,8 +32,10 @@ for tx_d in tx:
 
 load = pandas.read_csv( series[1]  + "TLOAD.csv", header=None,engine="python",delim_whitespace=True)
 load_avg = {}
-for speed,load_d in load.iterrows():
-    load_avg[int(speed[0])]= np.mean(load_d) / 4
+for col,seriesv in load.iterrows():
+    speed = seriesv[0]
+    load_d = seriesv[1]
+    load_avg[int(speed)]= np.mean(load_d) / 4
 
 print("Speed to Load mapping")
 print(speed_gbps)
@@ -38,46 +43,48 @@ print("Speed to CPU mapping")
 print(load_avg)
 
 
+#################################################
+#################################################
 
 print("Plotting VSDROPPED")
+try:
 
-plt.rcParams["figure.figsize"] = (6,3)
+    plt.rcParams["figure.figsize"] = (6,3)
 
-fig, ax1 = plt.subplots()
-speeds = [120, 130, 140]
+    fig, ax1 = plt.subplots()
+    speeds = [120, 130, 140]
 #data_v_s = []
-for i,s in enumerate(series):
-    data_v=OrderedDict()
+    for i,s in enumerate(series):
+        data_v=OrderedDict()
 
-    print("Reading %s" % s)
-    d = pandas.read_csv( s  + "IGDROPPED.csv", header=None,engine="python",delim_whitespace=True)
+        print("Reading %s" % s)
+        for speed in speeds:
+            d = pandas.read_csv(  s.replace("vslat","vsdrop") + "_-_Trace_replay_speed___" + str(speed) + "IDROPPED.csv", header=None, engine="python",delim_whitespace=True,names=list(range(4)))
+            for idx,l in d.iterrows():
+                data_v.setdefault(speed,[])
 
-    for idx,l in d.iterrows():
-        speed = int(l[0])
-        data_v.setdefault(speed,[])
-        data_v[speed].append(l[1:])
-    #data_v_s.append(data_v)
+                data_v[speed].append(l.to_numpy())
+        #data_v_s.append(data_v)
 
-    print("Plotting %s" % s)
-    for si,speed in enumerate(speeds):
-        data = data_v[speed]
-        print("Speed %d" % speed)
-        data = np.asarray(data)
-        x = data[:,0]
-        y = np.asarray([np.mean(d) for d in data[:,1:]])
-        x = x[~np.isnan(y)]
-        y = y[~np.isnan(y)]
-        ax=range(60)
-        ay=[0] * 60
-        for yi,yv in enumerate(y):
-            t = int(x[yi])
-            ay[t] += np.sum(yv)
-        label = "%s - %.01fGbps" % (labels[i],speed_gbps[speed])
+        print("Plotting %s" % s)
+        for si,speed in enumerate(speeds):
+            data = data_v[speed]
+            print("Speed %d" % speed)
+            data = np.asarray(data)
+            agg = OrderedDict()
+            for l in data:
+                #k=int(l[0])
+                k=l[0]
+                agg.setdefault(k,[]).extend(l[1:])
+            x = np.array(list(agg.keys()))
+            y = np.array([np.nanmean(d) for k,d in agg.items() ])
+            print(len(x), len(y))
+            label = "%s - %.01fGbps" % (labels[i],speed_gbps[speed])
 
-        scolor=shade(colors[i],si,len(speeds) )
-        ax1.scatter(ax, ay, label=label, color=scolor, marker=markers[si])  #facecolors=[scolor,'none'][i])
+            scolor=shade(colors[i],si,len(speeds) )
+            ax1.scatter(x, y, label=label, color=scolor, marker=markers[si])  #facecolors=[scolor,'none'][i])
 
-ax1.legend(loc="lower center", bbox_to_anchor=(0.5,1), ncol=2)
+    ax1.legend(loc="lower center", bbox_to_anchor=(0.5,1), ncol=2)
 
 #lines = [Line2D([0], [0], color=colors[0], linestyle='-'),
 #         Line2D([0], [0], color=colors[1], linestyle='-')]
@@ -98,71 +105,89 @@ ax1.legend(loc="lower center", bbox_to_anchor=(0.5,1), ncol=2)
 #ax1.add_artist(artist)
 
 
-ax1.set_xlim(0,60)
+    ax1.set_xlim(0,60)
 
-ax1.set_xlabel('Time (s)')
-ax1.set_ylabel('Packets dropped X1000')
+    ax1.set_xlabel('Time (s)')
+    ax1.set_ylabel('Packets dropped X1000')
 
 
-plt.tight_layout()
+    plt.tight_layout()
+    plt.subplots_adjust(top=0.75)
 
-plt.savefig('loadvsdrop.pdf')
+    plt.savefig('loadvsdrop.pdf')
 
-print("Figure saved to loadvsdrop.pdf")
+    print("Figure saved to loadvsdrop.pdf")
+
+except Exception as e:
+    print("Could not plot:")
+    traceback.print_exc()
+    print("Last data :")
+    print(d)
 
 plt.clf()
 
+
+#################################################
+#################################################
 print("Plotting CDFLAT")
 
 plt.rcParams["figure.figsize"] = (6,3.5)
 
 cdflat_speeds = [105,125,135]
 
-fig, ax1 = plt.subplots()
-latencys = []
-for i,s in enumerate(series):
-    latencys.append([])
-    for rspeed in cdflat_speeds:
-        print("Loading %d..." % rspeed)
-        latencys[i].append((np.genfromtxt(os.path.dirname(s) + os.sep + "lat-" + os.path.basename(s) +"-"+str(int(rspeed)) +".csv")))
+try:
+    fig, ax1 = plt.subplots()
+    latencys = []
+    for i,s in enumerate(series):
+        latencys.append([])
+        for rspeed in cdflat_speeds:
+            print("Loading %d from %s..." % (rspeed,s))
+            latencys[i].append((np.genfromtxt(os.path.dirname(s.replace("vslat","vslatcdf")) + os.sep + "lat-" + os.path.basename(s) +"-"+str(int(rspeed)) +".csv")))
 
-percs = [0.5,0.75,0.8,0.9,0.95]
+    percs = [0.5,0.75,0.8,0.9,0.95]
 
-perc_show = [95,90,50]
-perc_vals = []
-for i,latency_s in enumerate(latencys):
-    for il,latency in enumerate(latency_s):
-        num_bins = 1000
-        counts, bin_edges = np.histogram (latency, bins=num_bins, normed=True)
-        cdf = np.cumsum (counts)
-        #markevery=(0.0, 0.1),
-        #marker = markers[il],
-        for perc in percs:
-            print("Perc %s at %d -> %d : %d" % (labels[i],cdflat_speeds[il],perc*100,np.percentile(latency,perc*100)))
-        perc_vals.append(np.percentile(latency,perc_show[il]))
-        rects = ax1.plot(bin_edges[1:], cdf/cdf[-1] * 100, color=shade(colors[i], il, len(cdflat_speeds)), linestyle=linestyles[il], label="%s - CPU @ %d%%" % (labels[i],load_avg[cdflat_speeds[il]] * 100))
+    perc_show = [95,90,50]
+    perc_vals = []
+    for i,latency_s in enumerate(latencys):
+        for il,latency in enumerate(latency_s):
+            num_bins = 1000
+            counts, bin_edges = np.histogram (latency, bins=num_bins, normed=True)
+            cdf = np.cumsum (counts)
+            #markevery=(0.0, 0.1),
+            #marker = markers[il],
+            for perc in percs:
+                print("Perc %s at %d -> %d : %d" % (labels[i],cdflat_speeds[il],perc*100,np.percentile(latency,perc*100)))
+            perc_vals.append(np.percentile(latency,perc_show[il]))
+            rects = ax1.plot(bin_edges[1:], cdf/cdf[-1] * 100, color=shade(colors[i], il, len(cdflat_speeds)), linestyle=linestyles[il], label="%s - CPU @ %d%%" % (labels[i],load_avg[cdflat_speeds[il]] * 100))
 
-pos=[90,60,30]
-for il,perc in enumerate(perc_show):
-    a = perc_vals[il]
-    b = perc_vals[il + len(perc_show)]
-    ax1.annotate(xy=(a,perc),xytext=(b,perc),color="black",s="",arrowprops=dict(facecolor='black', arrowstyle='|-|'))
-    ax1.arrow(b + (a - b) *0.5,perc,6000-a,pos[il]-perc,color="black", linestyle=':' )
-    ax1.text(15000,pos[il] - 10,color="black",s="%dth perc.\nCPU @ %d%%\n%.01fX" % (perc, load_avg[cdflat_speeds[il]]*100, a / b), horizontalalignment='center',verticalalignment='center' )
+    pos=[90,60,30]
+    for il,perc in enumerate(perc_show):
+        a = perc_vals[il]
+        b = perc_vals[il + len(perc_show)]
+        ax1.annotate(xy=(a,perc),xytext=(b,perc),color="black",s="",arrowprops=dict(facecolor='black', arrowstyle='|-|'))
+        ax1.arrow(b + (a - b) *0.5,perc,6000-a,pos[il]-perc,color="black", linestyle=':' )
+        ax1.text(15000,pos[il] - 10,color="black",s="%dth perc.\nCPU @ %d%%\n%.01fX" % (perc, load_avg[cdflat_speeds[il]]*100, a / b), horizontalalignment='center',verticalalignment='center' )
 
-ax1.set_xscale("symlog")
-ax1.set_ylabel("Fraction of packets (%)")
-ax1.set_xlabel("Latency (us)")
+    ax1.set_xscale("symlog")
+    ax1.set_ylabel("Fraction of packets (%)")
+    ax1.set_xlabel("Latency (us)")
 
-ax1.xaxis.set_major_formatter(ticker.FormatStrFormatter("%d"))
-ax1.legend(loc="lower center",bbox_to_anchor=(0.5,1.0), ncol=2)
-
-
+    ax1.xaxis.set_major_formatter(ticker.FormatStrFormatter("%d"))
+    ax1.legend(loc="lower center",bbox_to_anchor=(0.5,1.0), ncol=2)
 
 
-plt.tight_layout()
 
-plt.savefig('loadvscdflat.pdf')
+
+    plt.tight_layout()
+
+    print("Figure saved to loadvscdflat.pdf")
+    plt.savefig('loadvscdflat.pdf')
+
+except Exception as e:
+    print("ERROR:")
+    print(e)
+    traceback.print_exc()
+
 
 plt.clf()
 
@@ -170,9 +195,10 @@ plt.clf()
 
 
 
+########################################
+########################################
 
-
-
+print("Ploting loadvslat")
 plt.ticklabel_format()
 
 throughputs = []
@@ -244,7 +270,10 @@ for i,mmlatency in enumerate(latencys):
     #    latency = np.array([[0,m],[60,m]])
     #ax2.plot(latency[:,0] - min(latency[:,0]) - shift[i], latency[:,1], linestyle=':', drawstyle='steps')
 
-ticks=90 + np.arange(9)*10
+mi=min(throughput[:,0])
+ma=max(throughput[:,0])
+
+ticks=mi + np.arange(int((ma-mi)/10))*10
 ax2.set_xticks(ticks)
 ax2.set_xlim(min(ticks)-5,max(ticks)+5)
 ax2.set_xticklabels(["%.01f" % (speed_gbps[speed]) for speed in ticks])
