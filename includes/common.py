@@ -57,9 +57,8 @@ def get_load_avg(s):
         speed = seriesv[0]
         if (np.isnan(speed)):
             continue
-        load_d = seriesv[1:-8]
+        load_d = seriesv[1:]
         load_avg[int(speed)]= np.mean(load_d) / 4
-    print(load_avg)
     return load_avg
 
 def get_speed_gbps(s):
@@ -70,8 +69,7 @@ def get_speed_gbps(s):
     for tx_d in tx:
         if np.isnan(tx_d[0]):
             continue
-        speed_gbps[int(tx_d[0])]= np.mean(tx_d[1:])
-    print(speed_gbps)
+        speed_gbps[int(tx_d[0])]= np.nanmean(tx_d[1:])
     return speed_gbps
 
 def pandaload(s):
