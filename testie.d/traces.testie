@@ -34,14 +34,8 @@ quad,kthmorningquad:trace3=/mnt/traces/kth/morning/20190507.morning.merged.ip.an
 
 %late_variables
 RSS_SPLITTER_OUT=EXPAND(${WORKING_DIR}/out)
-sprayer:RULES=EXPAND(${WORKING_DIR}/sprayer-rules/rules-256-${QUEUE}queue)
-sprayer,i40e:RULES=EXPAND(${WORKING_DIR}/sprayer-rules/rules-i40e-256-${QUEUE}queue)
-staticmetron|dynamicmetron:RULES=EXPAND(${WORKING_DIR}/metron-rules/${PREFIX}rules-ea10000-rr-1024max-${QUEUE})
+sprayer:RULES=EXPAND(${NPF_TESTIE_PATH}/includes/sprayer-rules/rules-256-${QUEUE}queue)
+sprayer,i40e:RULES=EXPAND(${NPF_TESTIE_PATH}/includes/sprayer-rules/rules-i40e-256-${QUEUE}queue)
+staticmetron|dynamicmetron:RULES=EXPAND(${NPF_TESTIE_PATH}/includes/metron-rules/${PREFIX}rules-ea10000-rr-1024max-${QUEUE})
 RX_IP=EXPAND(${p:ip})
-
-quad,kthmorningquad:trace0=/mnt/traces/kth/morning/20190507.morning.merged.ip.anon.nopayload.pcap-1557218213.gz-rewriten.pcap.transformed.pcap
-quad,kthmorningquad:trace1=/mnt/traces/kth/morning/20190507.morning.merged.ip.anon.nopayload.pcap-1557218303.gz-rewriten.pcap.transformed.pcap
-quad,kthmorningquad:trace2=/mnt/traces/kth/morning/20190507.morning.merged.ip.anon.nopayload.pcap-1557218393.gz-rewriten.pcap.transformed.pcap
-quad,kthmorningquad:trace3=/mnt/traces/kth/morning/20190507.morning.merged.ip.anon.nopayload.pcap-1557218483.gz-rewriten.pcap.transformed.pcap
-
 
