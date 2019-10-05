@@ -123,6 +123,7 @@ LIMIT=200000000
 LIMIT_TIME=70
 qtest:LIMIT=100000000
 qtest:LIMIT_TIME=10
+rate|iterative:GEN_BLOCKING?=false
 
 //Rate of the generator
 -rate:GEN_RATE=-1
@@ -224,9 +225,9 @@ dynamicmetron|staticmetron:ISOLATE=0
 dynaw:W=EXPAND( $(( int( ($WBASE / 8) * $QUEUE) )) )
 dump:LATENCYDUMP=EXPAND(${NPF_OUTPUT_PATH}/lat-${NPF_REPO}-${TIMING}.csv)
 ANALYSIS?=0
-fnt:TIMING_FNT=EXPAND( min($TIMING_FNT_BASE,$TIMING_FNT_BASE*max(0,sin(min(min(((x+1)/5),1), 1 - max((x-50)/5,0)  )*(pi/2)))) )
-sfnt:TIMING_FNT=10+min(90,90*max(0,sin(min(min((x/15),1), 1 - max((x-30)/30,0)  )*(pi/2))))
-fnt1:HAVE_TIMING_FNT=10+min(90,90*max(0,sin(min(min((x/15),1), 1 - max((x-50)/15,0)  )*(pi/2))))
+fnt:TIMING_FNT=EXPAND( min($TIMING_FNT_BASE,$TIMING_FNT_BASE*max(1,sin(min(min(((x+1)/5),1), 1 - max((x-50)/5,0)  )*(pi/2)))) )
+sfnt:TIMING_FNT=10+min(90,90*max(1,sin(min(min((x/15),1), 1 - max((x-30)/30,0)  )*(pi/2))))
+fnt1:HAVE_TIMING_FNT=10+min(90,90*max(1,sin(min(min((x/15),1), 1 - max((x-50)/15,0)  )*(pi/2))))
 
 DANCER?=0
 IMBTHRESH?=0.02
@@ -587,13 +588,15 @@ for time, results in sorted(TIME_RESULTS.items()):
         print("")
         print("")
 
+    #A lot of data that slows down everything. Remove to get it
+    if 'DIFFBYTES' in new_res:
+        del new_res['DIFFBYTES']
+        del new_res['DIFFPKTS']
     new_t[time] = new_res
 
     prev_time = time
     prev_results = results
-if 'DIFFBYTES' in new_r:
-    del new_r['DIFFBYTES']
-    del new_r['DIFFPKTS']
+
 TIME_RESULTS.update(new_t)
 RESULTS.update(new_r)
 

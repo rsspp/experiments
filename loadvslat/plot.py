@@ -1,7 +1,4 @@
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import numpy as np
+from common import *
 from matplotlib.lines import Line2D
 import matplotlib.ticker as ticker
 import os
@@ -22,111 +19,6 @@ t_markers = [m_rss, m_rsspp]
 
 colors = [c_rss,c_rsspp,c_metron]
 
-
-
-tx = np.genfromtxt(series[1] + "TX.csv")
-tx[:,1:] = tx[:,1:] / 1000000000
-speed_gbps = {}
-for tx_d in tx:
-    speed_gbps[int(tx_d[0])]= np.mean(tx_d[1:])
-
-load = pandas.read_csv( series[1]  + "TLOAD.csv", header=None,engine="python",delim_whitespace=True)
-load_avg = {}
-for col,seriesv in load.iterrows():
-    speed = seriesv[0]
-    load_d = seriesv[1]
-    load_avg[int(speed)]= np.mean(load_d) / 4
-
-print("Speed to Load mapping")
-print(speed_gbps)
-print("Speed to CPU mapping")
-print(load_avg)
-
-
-#################################################
-#################################################
-
-print("Plotting VSDROPPED")
-try:
-
-    plt.rcParams["figure.figsize"] = (6,3)
-
-    fig, ax1 = plt.subplots()
-    speeds = [120, 130, 140]
-#data_v_s = []
-    for i,s in enumerate(series):
-        data_v=OrderedDict()
-
-        print("Reading %s" % s)
-        for speed in speeds:
-            d = pandas.read_csv(  s.replace("vslat","vsdrop") + "_-_Trace_replay_speed___" + str(speed) + "IDROPPED.csv", header=None, engine="python",delim_whitespace=True,names=list(range(4)))
-            for idx,l in d.iterrows():
-                data_v.setdefault(speed,[])
-
-                data_v[speed].append(l.to_numpy())
-        #data_v_s.append(data_v)
-
-        print("Plotting %s" % s)
-        for si,speed in enumerate(speeds):
-            data = data_v[speed]
-            print("Speed %d" % speed)
-            data = np.asarray(data)
-            agg = OrderedDict()
-            for l in data:
-                #k=int(l[0])
-                k=l[0]
-                agg.setdefault(k,[]).extend(l[1:])
-            x = np.array(list(agg.keys()))
-            y = np.array([np.nanmean(d) for k,d in agg.items() ])
-            print(len(x), len(y))
-            label = "%s - %.01fGbps" % (labels[i],speed_gbps[speed])
-
-            scolor=shade(colors[i],si,len(speeds) )
-            ax1.scatter(x, y, label=label, color=scolor, marker=markers[si])  #facecolors=[scolor,'none'][i])
-
-    ax1.legend(loc="lower center", bbox_to_anchor=(0.5,1), ncol=2)
-
-#lines = [Line2D([0], [0], color=colors[0], linestyle='-'),
-#         Line2D([0], [0], color=colors[1], linestyle='-')]
-
-#artist = ax1.legend(lines, labels[:2], loc="lower left",  bbox_to_anchor=(0.0,1.0,0.45,1), title=None, mode="expand")
-
-#lines = []
-
-#speeds_gbps = []
-#for i in range(3):
-#    lines.append(Line2D([0], [0], color=shade((0.5,0.5,0.5),i,3),marker=markers[i], linestyle=' '))
-#
-#    idx = np.where( tx[:,0] == speeds[i] )
-#    gbps = np.mean(tx[idx,1:])
-#    speeds_gbps.append("%.01fGbps" % (gbps))
-#ax1.legend(lines, speeds_gbps, loc="lower right",  bbox_to_anchor=(0.45,1.0,0.55,1), ncol=1, title=None,mode="expand" )
-
-#ax1.add_artist(artist)
-
-
-    ax1.set_xlim(0,60)
-
-    ax1.set_xlabel('Time (s)')
-    ax1.set_ylabel('Packets dropped X1000')
-
-
-    plt.tight_layout()
-    plt.subplots_adjust(top=0.75)
-
-    plt.savefig('loadvsdrop.pdf')
-
-    print("Figure saved to loadvsdrop.pdf")
-
-except Exception as e:
-    print("Could not plot:")
-    traceback.print_exc()
-    print("Last data :")
-    print(d)
-
-plt.clf()
-
-
 #################################################
 #################################################
 print("Plotting CDFLAT")
@@ -134,6 +26,8 @@ print("Plotting CDFLAT")
 plt.rcParams["figure.figsize"] = (6,3.5)
 
 cdflat_speeds = [105,125,135]
+
+speed_gbps = get_speed_gbps(series[1].replace('loadvslat','loadvslatcdf'))
 
 try:
     fig, ax1 = plt.subplots()
@@ -194,11 +88,16 @@ plt.clf()
 
 
 
-
 ########################################
 ########################################
 
 print("Ploting loadvslat")
+
+
+load_avg = get_load_avg(series[1])
+
+speed_gbps = get_speed_gbps(series[1])
+
 plt.ticklabel_format()
 
 throughputs = []
@@ -272,7 +171,7 @@ for i,mmlatency in enumerate(latencys):
 
 mi=min(throughput[:,0])
 ma=max(throughput[:,0])
-
+print("From %d to %d", mi,ma)
 ticks=mi + np.arange(int((ma-mi)/10))*10
 ax2.set_xticks(ticks)
 ax2.set_xlim(min(ticks)-5,max(ticks)+5)

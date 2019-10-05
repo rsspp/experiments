@@ -1,3 +1,7 @@
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import pandas
 import numpy as np
 
 graphcolor = [(31, 119, 180), (174, 199, 232), (255, 127, 14), (255, 187, 120),
@@ -43,3 +47,33 @@ c_sprayer = colors[6]
 
 m_rss= 'o'
 m_rsspp = 'd'
+
+
+def get_load_avg(s):
+    print("Speed to CPU mapping from %s" % (s + "TLOAD.csv"))
+    load = pandas.read_csv( s  + "TLOAD.csv", header=None,engine="python",delim_whitespace=True)
+    load_avg = {}
+    for col,seriesv in load.iterrows():
+        speed = seriesv[0]
+        if (np.isnan(speed)):
+            continue
+        load_d = seriesv[1:-8]
+        load_avg[int(speed)]= np.mean(load_d) / 4
+    print(load_avg)
+    return load_avg
+
+def get_speed_gbps(s):
+    print("Speed to Load mapping from %s" % (s+"TX.csv") )
+    tx = np.genfromtxt(s + "TX.csv")
+    tx[:,1:] = tx[:,1:] / 1000000000
+    speed_gbps = {}
+    for tx_d in tx:
+        if np.isnan(tx_d[0]):
+            continue
+        speed_gbps[int(tx_d[0])]= np.mean(tx_d[1:])
+    print(speed_gbps)
+    return speed_gbps
+
+def pandaload(s):
+
+    return pandas.read_csv(s, header=None, engine="python", delim_whitespace=True,names=list(range(4))).to_numpy()
