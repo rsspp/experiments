@@ -189,7 +189,7 @@ fd0 :: FromDPDKDevice(PORT $iface, N_QUEUES 2, NUMA $numa, THREADOFFSET 0, MAXTH
 elementclass Function { $id | 
     input
     -> ipc :: IPClassifier(tcp or udp, -)
-    -> flows :: AggregateIPFlows(SYMETRIC false)
+    -> flows :: AggregateIPFlows(SYMETRIC false,TIMEOUT_UDP 0, TIMEOUT_TCP 0, TIMEOUT_TCP_DONE 0)
     -> counter :: AggregateCounter() //Number of packets per flow
     -> us :: Unstrip(14)
     -> AggregateLength()
@@ -239,8 +239,8 @@ s :: Script(
     write f/f1/counter.write_text_file "COUNT-fB-$step.txt",
     write f/f0/length.write_text_file "LENGTH-fA-$step.txt",
     write f/f1/length.write_text_file "LENGTH-fB-$step.txt",
-    print >>"STEP-fA-$step.text" $(sub $(f/f0/flows.next) 1),
-    print >>"STEP-fB-$step.text" $(sub $(f/f1/flows.next) 1),
+    print >>STEP-fA.txt "$step $(sub $(f/f0/flows.next) 1)",
+    print >>STEP-fB.txt "$step $(sub $(f/f1/flows.next) 1)",
     set t $(sub $h $difftime),
     set h $(add $h 1),
     set step $(add $step 1),
