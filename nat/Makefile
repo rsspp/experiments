@@ -1,6 +1,6 @@
 all: plot
 
-plot: plot.py
+graph: plot.py
 	python3 plot.py
 
 test:

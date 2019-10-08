@@ -5,7 +5,7 @@ include ../includes/Makefile.include
 all: testie testall plot
 
 
-plot: plot.py
+graph: plot.py
 	python3 plot.py
 
 quad:

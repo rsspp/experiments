@@ -1,6 +1,10 @@
-all:plot
+include ../includes/Makefile.include
 
-plot:plot.py
+.NOTPARALLEL:
+
+all: test graph
+
+graph:plot.py
 	python3 plot.py
 
 test:
