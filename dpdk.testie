@@ -113,10 +113,6 @@ RETA_SIZE=512
 //Numbers of queues to try
 QUEUE=[1-16]
 
-//Number of decriptors per queue
-NDESC=4096
-SINGLEDESC=4096
-
 //Generator parameter, you do not want to change this
 GEN_DESC=4096
 LIMIT=200000000
@@ -159,15 +155,6 @@ pianorss,-i40e|dynamicrss,-i40e|rssrr,-i40e:PROMISC=false
 dynamicrss|rss:TARGETMETHOD=rss
 rssrr:TARGETMETHOD=rssrr
 
-//Don't change these
-REPORT_PERIOD=1
-GEN_NOREWRITE_ETHER=1
-MONTHREAD=35
-BTHREAD=34
-PIPELINE=0
-pipeline:PIPELINE=1
-BLOCKING=0 //Drop packets if TX is full
-PAUSE=none //Disable pause frame
 flowrr:AWARE=0
 
 dynamicmetron|staticmetron:MINMVMT=3 //Metron's default is to not move a thread that moved in the last X seconds
@@ -197,7 +184,6 @@ fnt:HAVE_TIMING_FNT=2
 sfnt:HAVE_TIMING_FNT=1
 fnt1:HAVE_TIMING_FNT=3
 
-TIMING_FNT_BASE?=100
 
 //Pseudo-random number generation to simulate per packet load, or per flow load. Reviewers liked that so much.
 -dynaw:W=100
@@ -224,10 +210,8 @@ dynamicmetron|staticmetron:ISOLATE=0
 -fastiteration,iterative:ITERATION_TIME=1
 dynaw:W=EXPAND( $(( int( ($WBASE / 8) * $QUEUE) )) )
 dump:LATENCYDUMP=EXPAND(${NPF_OUTPUT_PATH}/lat-${NPF_REPO}-${TIMING}.csv)
+dump,-replay:LATENCYDUMP=EXPAND(${NPF_OUTPUT_PATH}/lat-${NPF_REPO}-${TIMING_FNT}.csv)
 ANALYSIS?=0
-fnt:TIMING_FNT=EXPAND( min($TIMING_FNT_BASE,$TIMING_FNT_BASE*max(1,sin(min(min(((x+1)/5),1), 1 - max((x-50)/5,0)  )*(pi/2)))) )
-sfnt:TIMING_FNT=10+min(90,90*max(1,sin(min(min((x/15),1), 1 - max((x-30)/30,0)  )*(pi/2))))
-fnt1:HAVE_TIMING_FNT=10+min(90,90*max(1,sin(min(min((x/15),1), 1 - max((x-50)/15,0)  )*(pi/2))))
 
 DANCER?=0
 IMBTHRESH?=0.02

@@ -7,13 +7,17 @@ SCRIPT_ELEMENT=s
 
 // Per-case variables
 kth:trace=/mnt/traces/kista/transformed/20181016-kista-all-nointernal.ip4.anon.transformed.pcap
-kthmorning:trace=/mnt/traces/kth/morning/20190507.morning.merged.ip.anon.pcap
+
+//Decomission the full trace to avoid using something not rewritten for sprayer
+//kthmorning:trace=/mnt/traces/kth/morning/20190507.morning.merged.ip.anon.pcap
+
 kthmorningsingle:trace=/mnt/traces/kth/morning/morning-single.transformed.pcap
 kthmorningsingleorig:trace=/mnt/traces/kth/morning/morning-single-orig.pcap
 
 //kthmorningdual:trace=/mnt/traces/kth/morning/morning-dual.pcap
 //kthmorningtri:trace=/mnt/traces/kth/morning/morning-tri.pcap
 kthmorningquad:trace=/mnt/traces/kth/morning/morning-quad.transformed.pcap
+kthmorningquadorig:trace=/mnt/traces/kth/morning/morning-quad.pcap
 //fb:trace=/mnt/traces/facebook/
 //caida13:trace=/mnt/traces/caida-2013/
 //caida14:trace=/mnt/traces/caida-2014/
