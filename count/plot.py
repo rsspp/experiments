@@ -30,6 +30,12 @@ for i,trace in enumerate(traces):
     cbytes = pandaload("iter-count-nodiff/%sBYTES.csv" % trace)
     print("Number of bytes in %s : %d" % (trace, np.nanmedian(cbytes)))
     print("Average packet size in %s : %f" % (trace, float(np.nanmedian(cbytes)) / np.nanmedian(count)))
+    count = pandaload("iter-count-nodiff/%sTX.csv" % trace)
+    print("TX in %s : %d" % (trace, np.nanmedian(count)))
+    count = pandaload("iter-count-nodiff/%sNFLOWS.csv" % trace)
+    print("Number of flows in %s : %d" % (trace, np.nanmedian(count[:,1])))
+    print("")
+
 try:
     start = 4
     plt.rcParams["figure.figsize"] = (6,3)
