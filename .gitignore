@@ -1,3 +1,5 @@
 .vimhistory
 build
 testie1*
+archive
+__pycache__
