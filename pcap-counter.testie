@@ -1,0 +1,262 @@
+%info
+Count the number of flows in a trace for every seconds
+
+%config
+timeout=12000
+n_runs=1
+time_kinds={TCOUNT,TLENGTH,DCOUNT,DLENGTH}
+
+var_names+={COUNTN:Cumulative # flows (MFlows),COUNTD:Number of flows (MFlows),LENGTHN:Cumulative # packets (MPackets),COUNTCDF:Cumulative % of flows,LENGTHCDF:Cumulative % of packets,TCOUNT:Number of packets,TLENGTH:Packet length (Bytes),NFLOWS:Number of active flows x1000,DCOUNT:Time (s),NEWFLOWS:New flows x1000}
+var_format={COUNTN:%d,LENGTHCDF:%d,COUNTD:%d}
+var_unit={COUNTN:packets,COUNTD:packets,COUNTCDF:%,LENGTHCDF:%}
+var_divider={COUNTCDF:0.01,LENGTHCDF:0.01}
+var_lim={LENGTHCDF:0-100,COUNTCDF:0-100}
+var_ticks={LENGTHCDF:0+20+40+60+80+100,COUNTCDF:0+20+40+60+80+100}
+time_sync=0
+graph_scatter={COUNTN,LENGTHCDF,VOLUMECDF,VOLUMEN,COUNTCDF,TLENGTH,TCOUNT,LENGTHN,COUNTD}
+accept_zero={time,COUNTN,LENGTHCDF,COUNTD}
+var_names+={time:Number of packets in flow}
+var_log+={time,TCOUNT,TLENGTH}
+//var_lim+={CDF:0-1,TCOUNT:1-,TLENGTH:64-1500,result-COUNTN:0-,result-VOLUMECDF:0-,result-COUNTD:0-,DCOUNT:0-50,NFLOWS:0-100,result-NEWFLOWS:0-100}
+var_ticks+={TCOUNT:1+4+16+64+256+1024+16384+65536+262344,TLENGTH:64+128+256+512+1024+1500}
+//count:graph_subplot_results={COUNTN+VOLUMECDF:2}
+graph_subplot_results={NFLOWS,NEWFLOWS:2}
+graph_subplot_type=axis
+graph_subplot_unique_legend=1
+//graph_lines={-,}
+var_sync={DCOUNT}
+graph_error={COUNTN:none,VOLUMECDF:none,COUNTD:none,DCOUNT:none}
+
+%include testie.d/common.testie
+%include testie.d/traces.testie
+
+%variables
+TIMING=1
+rate:GEN_RATE=1000000000
+-rate:GEN_RATE=-1
+LIMIT=200000000
+LIMIT_TIME=60
+ITERATION_TIME=1
+
+%late_variables
+PRINTCDF?=True
+DIFFERENTIAL?=True
+
+
+%-pipeline:require
+echo "This script requires the pipeline tag"
+exit 1
+
+%import@client fastclick-play-single-mt autokill=false
+
+// At the processing machine, we always run a simple RSS-based receiver
+%script@p sudo=true autokill=false critical=false name=click-counter
+echo "Launching client $RSS_SPLITTER_SCRIPT"
+killall -9 click
+sleep 1
+click --dpdk -l 0-15 -v -- countflows.click queuesNb=$QUEUE threadsNb=$QUEUE numa=false iface=${self:0:pci}
+err=$?
+echo "Finished with code $err"
+exit $err
+
+%script@p sudo=true waitfor=TX_FINISHED name=Analyzer
+echo "Killing click and analysing results (Differential $DIFFERENTIAL)"
+killall click
+python load.py
+
+%file@p load.py
+import glob
+import re
+from natsort import natsorted
+from math import floor
+
+differential = ${DIFFERENTIAL}
+
+print("Analysing results")
+for TYPE in ["LENGTH","COUNT"]:
+    globalcounts = {}
+    lasttime = -1
+    lastt={}
+    duration = {}
+    durationlast = {}
+    files=natsorted(glob.glob(TYPE + "-fA-*.txt"))
+    if not differential:
+        files=files[-1:]
+
+    for f in files:
+      time = int(re.search(r'\d+', f).group())
+      assert(time > lasttime)
+      lasttime = time
+      counts = {}
+      tots = 0
+      news = 0
+      for fid in ["fA","fB"]:
+          with open(f.replace("fA",fid)) as reader:
+            t = {}
+            for line in reader.readlines():
+                if line.startswith('!') or line == "\n":
+                    continue
+                t.update([line.rstrip().split(' ')])
+
+            if "LENGTH" == TYPE:
+                for id,count in t.items():
+                    count = int(count)
+                    if int(id) in globalcounts: 
+                        globalcounts[int(id)] += count
+                    else:
+                        globalcounts[int(id)] = count
+                        news += count
+                    tots += count
+            else:
+              for id,count in t.items():
+                count = int(count)
+                if fid+id in lastt:
+                    v = count - lastt[fid+id]
+                else:
+                    v = count
+                    news += 1
+
+                if fid+id not in duration:
+                    duration[fid+id] = time
+                durationlast[fid+id] = time
+                
+                lastt[fid+id] = count
+                if v > 0:
+                    counts.setdefault(v, 0)
+                    counts[v] += 1
+                    tots += 1
+              for length,n in counts.items():
+                globalcounts.setdefault(length,0)
+                globalcounts[length] += n
+      print("D%s-%f-RESULT-NFLOWS %d" % (TYPE,time,tots))
+      print("D%s-%f-RESULT-NEWFLOWS %d" % (TYPE,time,news))
+
+    durtime = {}
+    tnflows = 0
+    for id,start in duration.items():
+        d=durationlast[id] - start + 1 
+        durtime.setdefault(d,0)
+        durtime[d] += 1
+        tnflows += 1
+
+    ntot = 0
+    for duration, nflows in durtime.items():
+        ntot += nflows
+        print("T%s-%f-RESULT-DURTIME %f" % (TYPE,duration,float(ntot)/float(tnflows)))
+
+    lastrcdf = -1
+    count=0
+    volume=0
+    totcount = 0
+    totvolume = 0
+    for length,n in sorted(globalcounts.items()):
+        totcount += n
+        totvolume += n*length
+
+    for length,n in sorted(globalcounts.items()):
+        count += n
+        countcdf = float(count) / float(totcount)
+        volume += n * length
+        volumecdf = float(volume) / float(totvolume)
+        rcdf = floor(countcdf * 1000)
+        #Round like a CDF even if the data is raw value to prevent outpouting too much line
+        if lastrcdf != rcdf:
+            print("T%s-%f-RESULT-%sN %d" % (TYPE, length,TYPE,count))
+            print("T%s-%f-RESULT-%sT %d" % (TYPE, length,TYPE,n))
+            print("T%s-%f-RESULT-%sCDF %.03f" % (TYPE, length,TYPE,countcdf))
+            print("T%s-%f-RESULT-%sVOLUMEN %d" % (TYPE, length,TYPE,volume))
+            print("T%s-%f-RESULT-%sVOLUMECDF %.03f" % (TYPE,length,TYPE,volumecdf))
+            lastrcdf = rcdf
+
+print("Analysis finished")
+
+%file@p countflows.click
+define(
+    $iface      0000:03:00.0,
+    $queuesNb   8,
+    $threadsNb  8,
+    $dispatcherNb 1,
+    $numa       false,
+    $verbose    99,
+    $toFile     out
+);
+
+td0 :: ToDPDKDevice(PORT $iface, VERBOSE $verbose, BLOCKING false);
+
+
+fd0 :: FromDPDKDevice(PORT $iface, N_QUEUES 2, NUMA $numa, THREADOFFSET 0, MAXTHREADS 2, VERBOSE $verbose, PAUSE $PAUSE, NDESC $SINGLEDESC);
+
+elementclass Function { $id | 
+    input
+    -> ipc :: IPClassifier(tcp or udp, -)
+    -> flows :: AggregateIPFlows(SYMETRIC false)
+    -> counter :: AggregateCounter() //Number of packets per flow
+    -> us :: Unstrip(14)
+    -> AggregateLength()
+    -> length :: AggregateCounter() //Number of packets of size X
+    -> EtherRewrite(SRC ${p:0:mac}, DST ${client:0:mac})
+    -> output;
+
+    ipc[1] -> us;
+}
+
+fd0
+    -> classifier :: Classifier(12/0800, -)
+    -> Strip(14)
+    -> MarkIPHeader
+    -> SetTimestamp
+    -> check :: CheckIPHeader(VERBOSE true)
+    -> CPUSwitch[0-1] => f :: {
+     input[0]   -> f0 :: Function(0) -> [0]output;
+     input[1]   -> f1 :: Function(1) -> [1]output;
+    }[0-1]
+
+    => [0]td0;
+
+
+
+
+
+classifier[1] -> Print(NonIPv4) -> Discard;
+
+
+s :: Script(
+    TYPE ACTIVE,
+    set RUNNING 1,
+    // Show queue statistics only if the flag is set to 1
+    set start $(now),
+    set lasttime $start,
+    set t 1,
+    set h 2,
+    set step 0,
+    label loop,    
+    print "Wait for $t sec",
+    wait $t,
+    set time $(now),
+    set difftime $(sub $time $start),
+    print "Writing stats for $difftime...",
+    write f/f0/counter.write_text_file "COUNT-fA-$step.txt",
+    write f/f1/counter.write_text_file "COUNT-fB-$step.txt",
+    write f/f0/length.write_text_file "LENGTH-fA-$step.txt",
+    write f/f1/length.write_text_file "LENGTH-fB-$step.txt",
+    print >>"STEP-fA-$step.text" $(sub $(f/f0/flows.next) 1),
+    print >>"STEP-fB-$step.text" $(sub $(f/f1/flows.next) 1),
+    set t $(sub $h $difftime),
+    set h $(add $h 1),
+    set step $(add $step 1),
+    set lasttime $time,
+    goto loop $(eq $RUNNING 1),
+);
+
+DriverManager(
+    print "EVENT RX_STARTED",
+    pause,
+    print "EVENT RX_STOPPED",
+    print "",
+    print "   Sent: "$(td0.count),
+    print > $toFile $(fd0.xstats),
+    stop
+);
+
+StaticThreadSched(r 15)
+StaticThreadSched(s 15)
