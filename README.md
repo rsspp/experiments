@@ -47,6 +47,11 @@ For the kernel experiment you must have our modified Kernel, available at [https
 ### Install DPDK on both machined
 Download DPDK 19.05 at [http://dpdk.org]. To install, just use ./usertools/setup.py, then choose x86_64-native-linuxapp-gcc, then set up some huge pages, and if you use Intel NICs bind them.
 
+### Traces
+Most DPDK experiments use a trace, as a workload to various benchmarks. Unfortunately we cannot share our campus trace.
+Look at the paper to find the characteristics of the trace (one trace at 4Gbps, one "accelerated" at 15Gbps in the paper). One can use CAIDA 2018 traces but its relatively small speed limits reproducibility of the experiments with their current parameter (remember RSS++ aims to keep the CPU load at a high level, if the trace runs slower, you need to use less cores/more load on the DUT to a somehow unrealistic extent, which is why we used our own). You may use [our script](traces/) to accelerate your trace. Sprayer emulation also needs the trace [to be rewritten](traces/) (for experiments imbalance, latency, drop and nat), and similarly metron emulation needs rules specific to each traces to dispatch "traffic classes". Change the path of kthmorningsingle:trace=XX and kthmorningquad:trace=YY in testie.d/traces.testie to change the path to your own trace files.
+
+
 Summary of content
 ------------------
 
@@ -57,7 +62,7 @@ The following folders contain the Makefile for the experiment, that basically ca
  * heatmap: Figure 1 and Figure 3, showing the iPerf2 test. It is driven by kernel.testie, that is fairly readable. This experiment does *not* needs a trace as it uses iPerf.
 
 #### DPDK
-All DPDK experiments need a trace except "shared" that generates UDP flows. You may read about traces further below.
+All DPDK experiments need a trace except "shared" and "migration" that generates UDP flows. You may read about traces further below.
 
  * loadvslat: Figures 8a,b,c about RSS vs RSS++. Latency, throughput, drops, etc
  * dynamicscale: Figure 9 showing the dynamic scaling of CPU cores.
@@ -72,12 +77,7 @@ All DPDK experiments need a trace except "shared" that generates UDP flows. You 
  * includes: Parameters for experiments
  * testie.d: Parts of the two main testie files
  * pcap: Tools to prepare pcap files. Transform a PCAP file for Sprayer simulation (copying checksum to destination mac address) and increasing trace speed
- 
-Traces matter
--------------
-Most DPDK experiments use a trace, to execue various benchmarks. Unfortunately we cannot share our campus trace.
-Look at the paper to find the characteristics of the trace (one trace at 4Gbps, one "accelerated" at 15Gbps in the paper). One can use CAIDA 2018 traces but its relatively small speed limits reproducibility of the experiments with their current parameter (remember RSS++ aims to keep the CPU load at a high level, if the trace runs slower, you need to use less cores/more load on the DUT to a somehow unrealistic extent, which is why we used our own). You may use [our script](traces/) to accelerate your trace. Sprayer emulation also needs the trace [to be rewritten](traces/) (for experiments imbalance, latency, drop and nat), and similarly metron emulation needs rules specific to each traces to dispatch "traffic classes". Change the path of kthmorningsingle:trace=XX and kthmorningquad:trace=YY in testie.d/traces.testie to change the path to your own trace files.
- 
+
 What if something goes wrong?
 -----------------------------
 You may append some NPF parameters with the NPF_FLAGS variable such as `make test NPF_FLAGS="--force-retest --show-cmd --show-files --config n_runs=1 --preserve-temporaries"`.
