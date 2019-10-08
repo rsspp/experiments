@@ -12,7 +12,7 @@ NPF will download and build all dependencies, including RSS++ by itself. However
 Testbed
 -------
 For all tests, you need two computers, one that we'll refer as the *server*, that is the device under test running RSS++ (and compared systems) and one refered to as *client*, the traffic generator that will replay the traces (or use IPerf for the Linux experiment) and compute latency when packets come back. They were interconnected with Mellanox Connect-X 5 NICs with 100G direct attach cables, we also had XL710 and 82599 Intel NICs, limited respectively to 40G and 10G. In the current version of the experiment, we used only one NIC per machine, so the traffic would be sinked back through the same port. We plan on changing the last experiment to use a second link though.
-While our experiment was done with a 18-cores Xeon for the DUT, results should apply for different machines. The generator uses FastClick to replay traces up to 100G. The generator is hardwired to use 8 cores, hence you need at least that and enough memory to keep the trace in RAM.
+While our experiment was done with a 18-cores Xeon for the DUT, results should apply for different machines. The generator uses FastClick to replay traces up to 100G. The generator is hardwired to use 8 cores, hence you need at least that and enough memory to keep a good portion of the first 60 seconds of the trace in RAM.
 
 Prerequisites
 -------------
@@ -53,7 +53,12 @@ Summary of content
 ### Experiments
 The following folders contain the Makefile for the experiment, that basically calls NPF with one of the two testies. At some point we will be adding the generated data and plots. 
 
- * heatmap: Figure 1 and Figure 3, showing the iPerf2 test. It is driven by kernel.testie, that is fairly readable.
+#### Kernel
+ * heatmap: Figure 1 and Figure 3, showing the iPerf2 test. It is driven by kernel.testie, that is fairly readable. This experiment does *not* needs a trace as it uses iPerf.
+
+#### DPDK
+All DPDK experiments need a trace except "shared" that generates UDP flows. You may read about traces further below.
+
  * loadvslat: Figures 8a,b,c about RSS vs RSS++. Latency, throughput, drops, etc
  * dynamicscale: Figure 9 showing the dynamic scaling of CPU cores.
  * imbalance: Figures 10a and 10b showing the imbalance for the various methods, and according to the number of CPU used  
@@ -68,10 +73,17 @@ The following folders contain the Makefile for the experiment, that basically ca
  * testie.d: Parts of the two main testie files
  * pcap: Tools to prepare pcap files. Transform a PCAP file for Sprayer simulation (copying checksum to destination mac address) and increasing trace speed
  
+Traces matter
+-------------
+Most DPDK experiments use a trace, to execue various benchmarks. Unfortunately we cannot share our campus trace.
+Look at the paper to find the characteristics of the trace (one trace at 4Gbps, one "accelerated" at 15Gbps in the paper). One can use CAIDA 2018 traces but its relatively small speed limits reproducibility of the experiments with their current parameter (remember RSS++ aims to keep the CPU load at a high level, if the trace runs slower, you need to use less cores/more load on the DUT to a somehow unrealistic extent, which is why we used our own). You may use [our script](traces/) to accelerate your trace. Sprayer emulation also needs the trace [to be rewritten](traces/) (for experiments imbalance, latency, drop and nat), and similarly metron emulation needs rules specific to each traces to dispatch "traffic classes". Change the path of kthmorningsingle:trace=XX and kthmorningquad:trace=YY in testie.d/traces.testie to change the path to your own trace files.
+ 
 What if something goes wrong?
 -----------------------------
 You may append some NPF parameters with the NPF_FLAGS variable such as `make test NPF_FLAGS="--force-retest --show-cmd --show-files --config n_runs=1 --preserve-temporaries"`.
 --force-retest will force the test to be done again, even if NPF has some results in cache. --show-cmd will show commands that are launched on the client and server, --show-files will show generated file (such as Click configuration), n_runs=1 configuration parameter reduce the number of runs per tests to 1, while --preserve-temporaries will keep temporary files, scripts, etc so you can launch the test yourself if need be.
 
 One advantage of NPF is the ability to change the defined variables, including from the command line using `--variables CPU=8 FLOW="[50-100#10]"`, for the "heatmap" experiment for example, to see what happens with 8 cores and 50, 60, ..., 100 flows.
+
+And of course, do not hesitate to open issues or contact the authors.
 
