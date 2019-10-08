@@ -32,8 +32,8 @@ for i,trace in enumerate(traces):
     print("Average packet size in %s : %f" % (trace, float(np.nanmedian(cbytes)) / np.nanmedian(count)))
     count = pandaload("iter-count-nodiff/%sTX.csv" % trace)
     print("TX in %s : %d" % (trace, np.nanmedian(count)))
-    count = pandaload("iter-count-nodiff/%sNFLOWS.csv" % trace)
-    print("Number of flows in %s : %d" % (trace, np.nanmedian(count[:,1])))
+    count = pandaload("iter-count-nodiff/%sCOUNTN.csv" % trace)
+    print("Number of flows in %s : %d" % (trace, np.nanmedian(count[-1,1])))
     print("")
 
 try:

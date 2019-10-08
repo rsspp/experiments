@@ -36,6 +36,11 @@ def shade(c,i,t):
     else:
         return lighter(c, 0.75, 25.0/255.0)
 
+def make_alpha(c,a):
+    l = list(c)
+    l.append(a)
+    return tuple(l)
+
 dark_blue = c_rss = colors[0]
 purple = c_rsspp = colors[4]
 light_orange = graphcolor[2]

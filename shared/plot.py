@@ -1,5 +1,4 @@
-import matplotlib.pyplot as plt
-import numpy as np
+from common import *
 from matplotlib.lines import Line2D
 import matplotlib.ticker as ticker
 import pandas
@@ -31,20 +30,23 @@ ooos= []
 cycles = []
 for s in series_t:
     for t in series:
-        c = pandas.read_csv("shared-udp-cx5/" + s  + t + "OUTOFORDERPC.csv", header=None,engine="python",usecols=range(4),delim_whitespace=True)
-        ooos.append(np.array(c))
-        c = pandas.read_csv("shared-udp-cx5/" + s  + t + "KCYCLESPP.csv", header=None,engine="python",usecols=range(4),delim_whitespace=True)
-        cycles.append(np.array(c))
+        try:
+            c = pandas.read_csv("shared-udp-cx5/" + s  + t + "OUTOFORDERPC.csv", header=None,engine="python",usecols=range(4),delim_whitespace=True)
+            ooos.append(np.array(c))
+            c = pandas.read_csv("shared-udp-cx5/" + s  + t + "KCYCLESPP.csv", header=None,engine="python",usecols=range(4),delim_whitespace=True)
+            cycles.append(np.array(c))
+        except Exception as e:
+            print(e)
 
 prop = 8
-fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [prop, 1],"wspace":None,"hspace":0.1,"bottom":0.15,"top":0.75,"left":0.1,"right":0.95}, constrained_layout=False )
+fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [prop, 1],"wspace":None,"hspace":0.1,"bottom":0.15,"top":0.75,"left":0.1,"right":0.95}) #constrained_layout=False )
 
 #fig, ax1 = plt.subplots()
 fig.set_size_inches(6,3.5)
 
 for i,data in enumerate(cycles):
-    ax1.plot(data[:,0] * 4, [np.mean(l) for l in data[:,1]], label=None, color = graphcolor[i], linestyle=linestyles[i % len(series)], marker=markers[ int(i / 2)])
-ax1.set_ylabel('KCycles per packets')
+    ax1.plot(data[:,0] * 4, [np.mean(l) for l in data[:,1]], label=None, color = graphcolor[i], linestyle=linestyles[i % len(series)], marker=markers[ int(i / 2)], markerfacecolor=make_alpha(graphcolor[i],0.1),markeredgecolor=graphcolor[i])
+ax1.set_ylabel('Cycles per packets X1000')
 ax2.set_xlabel('Number of flows')
 ax1.set_xscale("log")
 ax1.set_ylim(2.4,4.5)
@@ -77,7 +79,7 @@ artist = ax1.legend(lines, series, loc="lower left",  bbox_to_anchor=(0.0,1.0,0.
 lines = []
 
 for i in range(4):
-    lines.append(Line2D([0], [0], color=colors[i],marker=markers[i], linestyle=' '))
+    lines.append(Line2D([0], [0], color=colors[i],marker=markers[i], markerfacecolor=make_alpha(colors[i],0.1),markeredgecolor=colors[i], linestyle=' '))
 
 ax1.legend(lines, labels_t, loc="lower right",  bbox_to_anchor=(0.45,1.0,0.55,1), ncol=2, title="Per-flow action",mode="expand" )
 
@@ -96,6 +98,7 @@ ax2.plot((1 - d, 1 + d), (1 - d * prop, 1 + d * prop), **kwargs)  # bottom-right
 ax1.grid(True,axis="y")
 #plt.tight_layout()
 
+print("Saving to shared.pdf")
 plt.savefig('shared.pdf')
 
 plt.clf()
@@ -104,7 +107,7 @@ fig, ax1 = plt.subplots()
 fig.set_size_inches(6,2.5)
 
 for i,data in enumerate(ooos):
-    ax1.plot(data[:,0] * 4, [np.mean(l) for l in data[:,1] * 100], label=None, color = graphcolor[i], linestyle=linestyles[i % len(series)], marker=markers[ int(i / 2)])
+    ax1.plot(data[:,0] * 4, [np.mean(l) for l in data[:,1] * 100], label=None, color = graphcolor[i], linestyle=linestyles[i % len(series)], marker=markers[ int(i / 2)], markerfacecolor=make_alpha(graphcolor[i],0.1),markeredgecolor=graphcolor[i] )
 
 ax1.set_ylabel('Out of order packets (%)')
 ax1.set_xlabel('Number of flows')
@@ -118,5 +121,7 @@ ax1.minorticks_off()
 ax1.grid(True,axis="y")
 
 plt.tight_layout()
+
+print("Saving to shared-ooos.pdf")
 plt.savefig('shared-ooos.pdf')
 
