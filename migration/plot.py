@@ -6,7 +6,7 @@ import pandas
 from os import sys
 from common import *
 series = [ "Shared", "Group-table" ]
-labels = [ "Shared", "Per-group" ]
+labels = [ "Shared", "Per-bucket" ]
 
 shift = np.array([-10, 2, 14]) - 2
 f = "migration-udp-cx5"
@@ -28,7 +28,7 @@ fig, ax1 = plt.subplots()
 fig.set_size_inches(6,3)
 
 for i,data in enumerate(data_a_s):
-    ax1.plot(data[:,0] + shift[0], [np.mean(l) for l in data[:,1]], label=labels[i], color = graphcolor[i], linestyle=linestyles[i % len(series)], marker=markers[ int(i / 2)])
+    ax1.plot(data[:,0] + shift[0], [np.mean(l) for l in data[:,1]], label=labels[i], color = graphcolor[i], linestyle=linestyles[i % len(series)], marker='None')
 
 ax1.set_ylabel('Throughput (Gbps)', color=darker(colors[0]))
 ax1.set_xlabel('Time (s)')
@@ -41,7 +41,7 @@ ax2.set_ylabel("Latency (µs)", color=darker(colors[1]))
 ax2.set_ylim(0,8000)
 ax2.tick_params(axis='y', labelcolor=darker(colors[1]))
 for i,data in enumerate(data_b_s):
-    ax2.plot(data[:,0] + shift[1], [np.mean(l) for l in data[:,1]], label=labels[i], color = graphcolor[i + 2], linestyle=linestyles[i % len(series)], marker=markers[ int(i / 2)])
+    ax2.plot(data[:,0] + shift[1], [np.mean(l) for l in data[:,1]], label=labels[i], color = graphcolor[i + 2], linestyle=linestyles[i % len(series)], marker='None') #markers[ int(i / 2)]
 
 yTickPos,_ = plt.yticks()
 yTickPos = yTickPos[:-1]
@@ -115,23 +115,4 @@ plt.savefig('migration.pdf')
 plt.clf()
 
 sys.exit(0)
-
-fig, ax1 = plt.subplots()
-fig.set_size_inches(6,2.5)
-
-for i,data in enumerate(ooos):
-    ax1.plot(data[:,0] * 4, [np.mean(l) for l in data[:,1] * 100], label=None, color = graphcolor[i], linestyle=linestyles[i % len(series)], marker=markers[ int(i / 2)])
-
-ax1.set_ylabel('Out of order packets (%)')
-ax1.set_xlabel('Number of flows')
-ax1.set_ylim(0,30)
-ax1.set_xscale("log")
-ax1.set_xticks(4* np.asarray([pow(2,i) for i in range(11)]))
-ax1.set_xlim([4, 4096])
-ax1.xaxis.set_major_formatter(ticker.FormatStrFormatter("%d"))
-ax1.minorticks_off()
-
-
-plt.tight_layout()
-plt.savefig('shared-ooos.pdf')
 
