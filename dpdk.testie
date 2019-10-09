@@ -7,7 +7,7 @@ For historical reason, RSS++ may be referred to as pianorss in code
 
 
 %config
-timeout=12000
+timeout=150
 n_runs=3
 imbalance:n_runs=1 //Imbalance is a statistic dependent of the trace, it has no variance
 
@@ -233,12 +233,12 @@ wpf:PROCESSER_FNT=EXPAND( -> fwp :: FlowWorkPackage(SEQUENTIAL $WPF_SEQ, TABLE_S
 STARTCPU?=-1
 FRESERVE?=0
 nat:FRESERVE=64
-migration:MIGRATIONT=5
+migration:MIGRATIONT=2
 migration:PQOSCORE=2
 migration|nat:PROCESSER_FNT=EXPAND(-> manager :: FlowIPManager(CAPACITY $(( int(655360 / 10) )) , RESERVE $FRESERVE, GROUPS $RETA_SIZE, DEF_THREAD $QUEUE) )
 migration,shared|nat,shared:PROCESSER_FNT=EXPAND(-> manager :: FlowIPManagerMP(CAPACITY 6553600 , RESERVE $FRESERVE) )
 migration,-shared|nat,-shared:MANAGER_OPT=, MANAGER manager
-migration:MIGRATEDRV=EXPAND( migratedrv :: Script(TYPE PASSIVE, set n 1, wait $(( int(2 * $MIGRATIONT) )) s, label addc,  write balancer.cpus $(add $STARTCPU $n),  wait ${MIGRATIONT}s, set n $(add $n 1), goto addc ) )
+migration:MIGRATEDRV=EXPAND( migratedrv :: Script(TYPE PASSIVE, set n 1, wait $(( int(2 * $MIGRATIONT) )) s, label addc, print "Scaling to $STARTCPU + $n cores",  write balancer.cpus $(add $STARTCPU $n),  wait ${MIGRATIONT}s, set n $(add $n 1), goto addc ) )
 PROCESSER_FNT?=
 nat:PROCESSER_FNT+= -> FlowIPNAT(FCB_OFFSET 16, SIP 1.0.0.1, STATE false)
 rl:PROCESSER_FNT+= -> RandLoad(MIN 1, MAX 100)
@@ -253,17 +253,17 @@ BVERBOSE?=0
 PIPELINE?=0
 
 //List of files to pass to click
-rss:RSS_SPLITTER_SCRIPT=RSS_IO rx-drss.click rx-process.click PARALLEL_PROCESSER DEV_READ
+rss:RSS_SPLITTER_SCRIPT=RSS_IO rx-none.click rx-process.click PARALLEL_PROCESSER DEV_READ
 pipeline:RSS_SPLITTER_SCRIPT=DISPATCHER SINGLE_IO PIPELINE_PROCESSER DEV_READ
 sprayer|staticmetron:RSS_SPLITTER_SCRIPT=FD_IO rx-none.click rx-process.click PARALLEL_PROCESSER DEV_READ
-dynamicmetron:RSS_SPLITTER_SCRIPT=FD_IO rx-metron.click rx-process.click PARALLEL_PROCESSER DEV_READ
+dynamicmetron:RSS_SPLITTER_SCRIPT=RSS_IO rx-metron.click rx-process.click PARALLEL_PROCESSER DEV_READ
 pianorss:RSS_SPLITTER_SCRIPT=RSS_IO rx-pianorss.click rx-process.click PARALLEL_PROCESSER DEV_READ
 dynamicrss|rssrr:RSS_SPLITTER_SCRIPT=RSS_IO rx-drss.click rx-process.click PARALLEL_PROCESSER DEV_READ
 
 
 //Generate some part of the configuration
-CURMAX=24
-MAXQUEUES=[0-24]
+CURMAX=18
+MAXQUEUES=[0-17]
 DISPATCHERS=EXPAND( disp[$MAXQUEUES] -> Paint($MAXQUEUES) -> p$MAXQUEUES :: Processer($(( int($MAXQUEUES + 1) )), $(( "0" if $MAXQUEUES >= $QUEUE else "1")) ) -> legit; p$MAXQUEUES[1]->dropped; )
 DISPATCHERS=HEAD($CURMAX, $DISPATCHERS)
 
@@ -349,7 +349,7 @@ sleep 1
 cat HEADER $RSS_SPLITTER_SCRIPT FOOTER > C
 cat C
 echo "Executing click at path $(which click)"
-$GDB click --dpdk -l 0-35 --log-level 99 -v -w ${self:0:pci},rx_vec_en=$RX_VEC_EN -- C queuesNb=$QUEUE threadsNb=$QUEUE numa=false toFile=$RSS_SPLITTER_OUT iface=${self:0:pci} rules=$RULES
+$GDB click --dpdk -l 0-35 --log-level 99 -v -w ${self:0:pci},rx_vec_en=$RX_VEC_EN -- C queuesNb=$QUEUE threadsNb=$QUEUE numa=false toFile=$RSS_SPLITTER_OUT iface=${self:0:pci}
 err=$?
 echo "Finished with code $err"
 exit $err
@@ -767,7 +767,7 @@ s :: Script(
 
 
 %file@p rx-metron.click
-balancer :: DeviceBalancer(DEV fd0, METHOD "metron", CONFIG $rules, CPUS $queuesNb, VERBOSE $BVERBOSE, TARGET $METRONTARGET, STARTCPU -1, UNDERLOAD 0.35, OVERLOAD 0.65, AUTOSCALE $AUTOSCALE, CYCLES $CYCLES, MIN_MOVEMENT $MINMVMT, TIMER $BALANCE_PERIOD);
+balancer :: DeviceBalancer(DEV fd0, METHOD "metron", CONFIG $RULES, CPUS $queuesNb, VERBOSE $BVERBOSE, TARGET $METRONTARGET, STARTCPU -1, UNDERLOAD 0.35, OVERLOAD 0.65, AUTOSCALE $AUTOSCALE, CYCLES $CYCLES, MIN_MOVEMENT $MINMVMT, TIMER $BALANCE_PERIOD);
 
 StaticThreadSched(balancer $BTHREAD)
 
@@ -825,7 +825,7 @@ fd0
 //    -> Print(FD0, -1)
 
 %file@p FD_IO
-fd0 :: FromDPDKDevice(PORT $iface, N_QUEUES $queuesNb, NUMA $numa, THREADOFFSET 0, MINTHREADS $threadsNb, MAXTHREADS $threadsNb, VERBOSE $verbose, PAUSE $PAUSE, MODE flow_dir, FLOW_DIR_RULES_FILE $rules, NDESC $NDESC, PROMISC true, PAINT_QUEUE true, ISOLATE $ISOLATE, BURST $BURST);
+fd0 :: FromDPDKDevice(PORT $iface, N_QUEUES $queuesNb, NUMA $numa, THREADOFFSET 0, MINTHREADS $threadsNb, MAXTHREADS $threadsNb, VERBOSE $verbose, PAUSE $PAUSE, MODE flow_dir, FLOW_DIR_RULES_FILE $RULES, NDESC $NDESC, PROMISC true, PAINT_QUEUE true, ISOLATE $ISOLATE, BURST $BURST);
 
 
 %file@p PARALLEL_PROCESSER
