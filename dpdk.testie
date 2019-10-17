@@ -157,6 +157,8 @@ rssrr:TARGETMETHOD=rssrr
 
 flowrr:AWARE=0
 
+noreorder,dpi:NOREORDER=1
+
 dynamicmetron|staticmetron:MINMVMT=3 //Metron's default is to not move a thread that moved in the last X seconds
 dynamicmetron,balance:MINMVMT=1 //On a server, 1 is better
 
@@ -183,6 +185,7 @@ HAVE_TIMING_FNT=0
 fnt:HAVE_TIMING_FNT=2
 sfnt:HAVE_TIMING_FNT=1
 fnt1:HAVE_TIMING_FNT=3
+fntgrow:HAVE_TIMING_FNT=4
 
 
 //Pseudo-random number generation to simulate per packet load, or per flow load. Reviewers liked that so much.
@@ -194,17 +197,35 @@ nowpf:WPF=No
 wpf_pwrite:WPF=Write
 wpf_seq:WPF=Sequential write
 
+//CPU Frequency
 lowfreq:FREQ=1000
+midfreq:FREQ=2300
+//default is 3700 set by late_variables below
+
+//Dump latency
 dump:DODUMP=1
 
+//Function
+fw:FNT=FW
+fw:FW_CHKSUM=true
+fw,nat:FNT=FW+NAT
+fw,nat,dpi:FNT=FW+NAT+DPI
+fw,nat,frl:FNT=FW+NAT+SDPI
+hfw:FWSIZE=half
 
 //----------Late variables----------
 // Late variables are default values, configuration that do not impact the test itself, or computed from the other values specific to the test
 //---------------------------------
 %late_variables
+R?=0
+S?=1
 
+
+//Default CPU freq
 FREQ?=3700
-ISOLATE=1
+
+//Mellanox isolate mode (only accept matched flows)
+ISOLATE=0
 dynamicmetron|staticmetron:ISOLATE=0
 
 -fastiteration,iterative:ITERATION_TIME=1
@@ -232,18 +253,27 @@ nowpf:WPF_ACTIVE=0
 wpf:PROCESSER_FNT=EXPAND( -> fwp :: FlowWorkPackage(SEQUENTIAL $WPF_SEQ, TABLE_SIZE $WPF_T, FREAD 1, FWRITE 1, PREAD $WPF_PREAD, PWRITE $WPF_PWRITE, W ${WFLOW}, ORDER $WPF_ORDER, ACTIVE $WPF_ACTIVE) )
 STARTCPU?=-1
 FRESERVE?=0
-nat:FRESERVE=64
+nat:FRESERVE=0
 migration:MIGRATIONT=2
 migration:PQOSCORE=2
-migration|nat:PROCESSER_FNT=EXPAND(-> manager :: FlowIPManager(CAPACITY $(( int(655360 / 10) )) , RESERVE $FRESERVE, GROUPS $RETA_SIZE, DEF_THREAD $QUEUE) )
+
+migration|nat:PROCESSER_FNT=EXPAND(-> manager :: FlowIPManager(CAPACITY $(( int(6553600 / 128) )) , RESERVE $FRESERVE, GROUPS $RETA_SIZE, DEF_THREAD $QUEUE, VERBOSE 0) )
 migration,shared|nat,shared:PROCESSER_FNT=EXPAND(-> manager :: FlowIPManagerMP(CAPACITY 6553600 , RESERVE $FRESERVE) )
 migration,-shared|nat,-shared:MANAGER_OPT=, MANAGER manager
+MANAGER_OPT?=
 migration:MIGRATEDRV=EXPAND( migratedrv :: Script(TYPE PASSIVE, set n 1, wait $(( int(2 * $MIGRATIONT) )) s, label addc, print "Scaling to $STARTCPU + $n cores",  write balancer.cpus $(add $STARTCPU $n),  wait ${MIGRATIONT}s, set n $(add $n 1), goto addc ) )
 PROCESSER_FNT?=
-nat:PROCESSER_FNT+= -> FlowIPNAT(FCB_OFFSET 16, SIP 1.0.0.1, STATE false)
+fw:PROCESSER_FNT+=EXPAND( -> IPFilter(file "$npf_root/$fw_rules_file") -> IPClassifier(udp,tcp,icmp,-)[0-3] =>{ input[0]->CheckUDPHeader(CHECKSUM $FW_CHKSUM)->[0];input[1] -> CheckTCPHeader(CHECKSUM $FW_CHKSUM)->[0]output;input[2]->CheckICMPHeader() -> [0]output;input[3]->[0]output;}  )
 rl:PROCESSER_FNT+= -> RandLoad(MIN 1, MAX 100)
-frl:PROCESSER_FNT+= -> FlowRandLoad(MIN 1, MAX 100, FCB_OFFSET 8)
-MANAGER_OPT?=
+frl,shared|dpi,shared|nat,shared:PROCESSER_FNT+= -> FlowLock()
+nat:PROCESSER_FNT+= -> FlowIPNAT(SIP 1.0.0.1, STATE true, ACCEPT_NONSYN true)
+frl:PROCESSER_FNT+= -> FlowRandLoad(MIN 1, MAX 100)
+dpi:NODPI=0
+-dpi:NODPI=1
+dpi:PROCESSER_FNT+=EXPAND( -> { [0] -> s :: Switch($NODPI) -> prot :: IPClassifier(tcp,udp,-); prot[0] )
+-noreorder,dpi:PROCESSER_FNT+=-> SimpleTCPReorder(VERBOSE 0)
+dpi:PROCESSER_FNT+=-> strip :: StripTransportHeader -> FlowHyperScan("SINFO\\x3B[^\\r\\n]{1,20}\\x3BPONG\\x3B", "#\\S{190}.rt",".map/[^\\n]*script[^\\n]*script", "000File\\s+is\\s+executed\\x2E\\x2E\\x2E", "===========\\x3E\\s+WinSession\\s+Logger", "Advanced\\s+Spy\\s+Report\\s+for", "All\\s+In\\s+One\\s+Keylogger\\s+report\\x2E.*PGh0bWw\\+PGhlYWQ\\+PHRpdGxlPkFsbCBJbiBPbmUgS2V5bG9nZ2VyIFJlcG9y", "Attached\\s+\\x28ZIP\\s+file\\x29\\s+to\\s+this\\s+email\\s+are\\s+the\\s+activity\\s+logs\\s+that\\s+you\\s+have\\s+requested\\x2E", "Attached\\s+file\\s+is\\s+PC\\s+Acme\\s+report", "Attachment\\s+contains\\s+Spy\\s+Lantern\\s+Keylogger.*log\\s+file\\x2E") -> UnstripIPHeader -> Unstrip(14) -> [0]; prot[1] -> strip; prot[2] -> [0]; s[1] -> [0]; }
+
 MIGRATEDRV?=
 checkorder:CHECKORDER=1
 
@@ -259,6 +289,8 @@ sprayer|staticmetron:RSS_SPLITTER_SCRIPT=FD_IO rx-none.click rx-process.click PA
 dynamicmetron:RSS_SPLITTER_SCRIPT=RSS_IO rx-metron.click rx-process.click PARALLEL_PROCESSER DEV_READ
 pianorss:RSS_SPLITTER_SCRIPT=RSS_IO rx-pianorss.click rx-process.click PARALLEL_PROCESSER DEV_READ
 dynamicrss|rssrr:RSS_SPLITTER_SCRIPT=RSS_IO rx-drss.click rx-process.click PARALLEL_PROCESSER DEV_READ
+
+DBACTIVE?=true
 
 
 //Generate some part of the configuration
@@ -296,8 +328,9 @@ test -n "$WBASE"
 %-udp,replay,-iterative,rated:import@client fastclick-replay-single-mt-rated nolinktest=1
 %-udp,-iterative,-replay,-quad:import@client fastclick-play-single-mt
 %-udp,-iterative,-replay,quad:import@client fastclick-play-single-mt-quad
-%-i40e:import@client dev_rate NIC=0 delay=5
 %udp:import@client fastclick-udpgen-latency-single-multiclient
+
+%perffct:import@dut perf-functions delay=25
 
 
 %dpdk,i40e,-nobind:import@p dpdk-bind NIC=0
@@ -604,13 +637,13 @@ define(
     $dispatcherNb 1,
 	$numa       false,
 	$verbose    99,
-	$toFile     out
+    $npf_root   ${NPF_TESTIE_PATH}
 );
 
 elementclass Pipeline {
 
     input
-    -> wp :: WorkPackage(W $W, S 1, N 1, R 0, PAYLOAD false, ANALYSIS $ANALYSIS)
+    -> wp :: WorkPackage(W $W, S $S, N 1, R $R, PAYLOAD false, ANALYSIS $ANALYSIS)
     -> EtherRewrite(SRC ${p:0:mac}, DST ${client:0:mac})
     -> output;
 }
@@ -767,7 +800,7 @@ s :: Script(
 
 
 %file@p rx-metron.click
-balancer :: DeviceBalancer(DEV fd0, METHOD "metron", CONFIG $RULES, CPUS $queuesNb, VERBOSE $BVERBOSE, TARGET $METRONTARGET, STARTCPU -1, UNDERLOAD 0.35, OVERLOAD 0.65, AUTOSCALE $AUTOSCALE, CYCLES $CYCLES, MIN_MOVEMENT $MINMVMT, TIMER $BALANCE_PERIOD);
+balancer :: DeviceBalancer(DEV fd0, METHOD "metron", CONFIG $RULES, CPUS $queuesNb, VERBOSE $BVERBOSE, TARGET $METRONTARGET, STARTCPU -1, UNDERLOAD 0.35, OVERLOAD 0.65, AUTOSCALE $AUTOSCALE, CYCLES $CYCLES, MIN_MOVEMENT $MINMVMT, TIMER $BALANCE_PERIOD, ACTIVE $DBACTIVE);
 
 StaticThreadSched(balancer $BTHREAD)
 
@@ -785,7 +818,7 @@ fd0
 
 
 %file@p rx-pianorss.click
-balancer :: DeviceBalancer(DEV fd0, METHOD "${TARGETMETHOD}", VERBOSE $BVERBOSE, TIMER $BALANCE_PERIOD, CPUS $queuesNb, TARGET $METRONTARGET, STARTCPU -1, LOAD 0.90, RSSCOUNTER agg, AUTOSCALE $AUTOSCALE, CYCLES $CYCLES, RETA_SIZE $RETA_SIZE, IMBALANCE_THRESHOLD $IMBTHRESH, DANCER $DANCER, NUMA $DBNUMA $MANAGER_OPT ); //VERIFIER RSS
+balancer :: DeviceBalancer(DEV fd0, METHOD "${TARGETMETHOD}", VERBOSE $BVERBOSE, TIMER $BALANCE_PERIOD, CPUS $queuesNb, TARGET $METRONTARGET, STARTCPU -1, LOAD 0.90, RSSCOUNTER agg, AUTOSCALE $AUTOSCALE, CYCLES $CYCLES, RETA_SIZE $RETA_SIZE, IMBALANCE_THRESHOLD $IMBTHRESH, DANCER $DANCER, ACTIVE $DBACTIVE, NUMA $DBNUMA $MANAGER_OPT ); //VERIFIER RSS
 
 
 StaticThreadSched(balancer $BTHREAD)
@@ -929,7 +962,6 @@ DriverManager(
     print "RESULT-KCYCLESPP $(div $cycles $(td0.count))",
     print "RESULT-ACYCLES $(pip/wp.cycles_per_work)",
     print "RESULT-RSSSIZE $(fd0.rss_reta_size)",
-	print > $toFile $(fd0.xstats),
 	stop
 );
 
