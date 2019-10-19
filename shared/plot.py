@@ -2,38 +2,28 @@ from common import *
 from matplotlib.lines import Line2D
 import matplotlib.ticker as ticker
 import pandas
+from math import ceil
 
-graphcolor = [(31, 119, 180), (174, 199, 232), (255, 127, 14), (255, 187, 120),
-              (44, 160, 44), (152, 223, 138), (214, 39, 40), (255, 152, 150),
-              (148, 103, 189), (197, 176, 213), (140, 86, 75), (196, 156, 148),
-              (227, 119, 194), (247, 182, 210), (127, 127, 127), (199, 199, 199),
-              (188, 189, 34), (219, 219, 141), (23, 190, 207), (158, 218, 229)]
+n_results=10
+
 series = [ "Sprayer", "RSS" ]
 series_t = [ "WPF__No_-_SERIE__", "WPF__Read_-_SERIE__", "WPF__Write_-_SERIE__", "WPF__Sequential_write_-_SERIE__" ]
 labels = ["Sprayer","RSS"]
 labels_t = ["None","Read","Write","Sequential write"]
 
-colors = []
-for i in range(int(len(graphcolor) / 2)):
-    colors.append((np.asarray(graphcolor[i*2]) + np.asarray(graphcolor[i*2+1])) / 2)
-
 #colors = [(97,146,187),(230,141,60),(88,172,82)]
 
 
-graphcolor = [(c1/255.0,c2/255.0,c3/255.0) for c1,c2,c3 in graphcolor]
-colors = [(c1/255.0,c2/255.0,c3/255.0) for c1,c2,c3 in colors]
 shift = [0,0,0]
-markers=['o', '^', 's', 'D', '*', 'x', '.', '_', 'H', '>', '<', 'v', 'd']
-linestyles = ['-', '--', '-.', ':']
 
 ooos= []
 cycles = []
 for s in series_t:
     for t in series:
         try:
-            c = pandas.read_csv("shared-udp-cx5/" + s  + t + "OUTOFORDERPC.csv", header=None,engine="python",usecols=range(4),delim_whitespace=True)
+            c = pandas.read_csv("shared-udp-cx5/" + s  + t + "OUTOFORDERPC.csv", header=None,engine="python",usecols=range(1 + n_results),delim_whitespace=True)
             ooos.append(np.array(c))
-            c = pandas.read_csv("shared-udp-cx5/" + s  + t + "KCYCLESPP.csv", header=None,engine="python",usecols=range(4),delim_whitespace=True)
+            c = pandas.read_csv("shared-udp-cx5/" + s  + t + "KCYCLESPP.csv", header=None,engine="python",usecols=range(1 + n_results),delim_whitespace=True)
             cycles.append(np.array(c))
         except Exception as e:
             print(e)
@@ -45,11 +35,11 @@ fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': 
 fig.set_size_inches(6,3.5)
 
 for i,data in enumerate(cycles):
-    ax1.plot(data[:,0] * 4, [np.mean(l) for l in data[:,1]], label=None, color = graphcolor[i], linestyle=linestyles[i % len(series)], marker=markers[ int(i / 2)], markerfacecolor=make_alpha(graphcolor[i],0.1),markeredgecolor=graphcolor[i])
+    ax1.plot(data[:,0] * 4, [np.nanmean(l) for l in data[:,1:]], label=None, color = graphcolor[i], linestyle=linestyles[i % len(series)], marker=markers[ int(i / 2)], markerfacecolor=make_alpha(graphcolor[i],0.1),markeredgecolor=graphcolor[i])
 ax1.set_ylabel('Cycles per packets X1000')
 ax2.set_xlabel('Number of flows')
 ax1.set_xscale("log")
-ax1.set_ylim(2.4,4.5)
+ax1.set_ylim(2.4,ceil(np.nanmax(data[:,1:])))
 ax2.set_ylim(0,(4.5-2.5)/prop)
 ax1.set_yticks([2.5,3,3.5,4,4.5])
 ax2.set_yticks([0])
