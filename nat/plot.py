@@ -1,10 +1,10 @@
+from common import *
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.lines import Line2D
 import matplotlib.ticker as ticker
-from common import *
 from math import log,pow
-from study import *
+#from study import *
 import pandas
 
 traces = ["kthmorning"]
@@ -16,6 +16,7 @@ t=["FW","FWNAT","FWNATDPI"]
 labelss=["RSS", "Sprayer", "RSS++"]
 labelst=["FW", "FW+NAT", "FW+NAT+DPI"]
 
+exp_time=80
 
 tcolors=[c_rss,c_sprayer,c_rsspp]
 series=[]
@@ -49,16 +50,18 @@ for trace in traces:
             #th = pandas.read_csv("latency-%s/%sTX.csv" % (trace, serie), header=None,engine="python",delim_whitespace=True, usecols=range(4), index_col=False)
             #th = th.to_numpy()
             #data = data[ (data[:,0] < 50) & (data[:,0] > 5) ]
-            data_s.append(data[ data[:,0] <= 90 ])
+            data_s.append(data[ data[:,0] <= exp_time ])
             #th_s.append(th)
         except Exception as e:
             print("While reading trace %s:" % trace)
             print(e)
             continue
 
+    max_th=max([np.nanmax(txd[:,1:]) for txd in txx]) / pow(10,9)
+
     data = pandas.read_csv("nat-%s-cx5/%sITX.csv" % (traces[0], series[0]), header=None,engine="python",delim_whitespace=True, usecols=range(4), index_col=False)
     thx = data.to_numpy()
-    thx = thx[ thx[:,0] <= 90 ]
+    thx = thx[ thx[:,0] <= exp_time ]
     plt.clf()
     plt.rcParams["figure.figsize"] = (6,4)
     fig, ax1 = plt.subplots()
@@ -69,7 +72,7 @@ for trace in traces:
     #ax2.set_ylabel('Packets in queues', color=rcolor)  # we already handled the x-label with ax1
 
     ax2.set_ylabel('Throughput (Gbps)')
-    ax2.set_ylim(0,90)
+    ax2.set_ylim(0,max_th)
     for i,data in enumerate(data_s):
 
         scolor = tcolors[int(i % 3)]
@@ -82,10 +85,11 @@ for trace in traces:
         rects = ax2.plot(X, med, color=scolor,markevery=10, marker=tmarkers[int(i % 3)], linestyle=linestyles[int(i / 3)], label=labels[i])
 
    #t = np.arange(7) * 5
-    ax2.set_xlim(-0.5,90.5)
-    ticks=np.arange(10) * 10
+    ax2.set_xlim(-0.5,exp_time + 0.5)
+    inter = int(exp_time/10)
+    ticks=np.arange(10) * (inter + 1)
     ax2.set_xticks(ticks)
-    ax2.set_xticklabels(["%d" % (t / 1000000000) for t in thx[:,1][np.arange(10) * 9]])
+    ax2.set_xticklabels(["%d" % (t / 1000000000) for t in thx[:,1][np.arange(10) * inter]])
     #ax2.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: "%d" % (x)))
     ax2.set_xlabel("Offered load (Gbps)")
 
@@ -101,9 +105,10 @@ for trace in traces:
     ax2.legend(ncol=3,bbox_to_anchor=(0.5,1),loc="lower center")
     ax2.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: "%d" % (x)))
     fig.tight_layout()  # otherwise the right y-label is slightly clipped
-
+    plt.subplots_adjust(top=0.80)
     name = 'nat-%s.pdf' % trace
     plt.savefig(name)
+
     print("Generated %s" % name)
 
 
