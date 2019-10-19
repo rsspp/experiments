@@ -6,28 +6,38 @@ RX_PORT=80
 SCRIPT_ELEMENT=s
 
 // Per-case variables
-kth:trace=/mnt/traces/kista/transformed/20181016-kista-all-nointernal.ip4.anon.transformed.pcap
 
+
+//------------ KTH -------------------
 //Decomission the full trace to avoid using something not rewritten for sprayer
 //kthmorning:trace=/mnt/traces/kth/morning/20190507.morning.merged.ip.anon.pcap
 
+kthmorningdual|kthmorningdual|kthmorningtri|kthmorningquad|kthmorningquad10:PREFIX=kthmorningquad-
 kthmorningsingle:trace=/mnt/traces/kth/morning/morning-single.transformed.pcap
 kthmorningsingleorig:trace=/mnt/traces/kth/morning/morning-single-orig.pcap
 
-//kthmorningdual:trace=/mnt/traces/kth/morning/morning-dual.pcap
-//kthmorningtri:trace=/mnt/traces/kth/morning/morning-tri.pcap
+kthmorningsingle:fw_rules_file=/includes/ipfilter/morning-single-rules-20000.rules
+
 kthmorningquad:trace=/mnt/traces/kth/morning/morning-quad.transformed.pcap
 kthmorningquadorig:trace=/mnt/traces/kth/morning/morning-quad.pcap
+
+kthmorningquad:fw_rules_file=/includes/ipfilter/morning-quad-rules-40000.rules
+
+kthmorningquad,hfw:fw_rules_file=/includes/ipfilter/morning-quad-rules-20000.rules
+
+//------------ Facebook --------------
 //fb:trace=/mnt/traces/facebook/
+
+//------------ Caida -----------------
 //caida13:trace=/mnt/traces/caida-2013/
 //caida14:trace=/mnt/traces/caida-2014/
 //caida15:trace=/mnt/traces/caida-2015/
 //caida16:trace=/mnt/traces/caida-2016/
 caida18:trace=/mnt/traces/caida-2018/caida18-single.transformed.pcap
 caida18:PREFIX=caida18-
-kthmorningdual|kthmorningdual|kthmorningtri|kthmorningquad|kthmorningquad10:PREFIX=kthmorningquad-
-TRACE_STRIP=0
-//caida18:TRACE_STRIP=14
+
+
+
 
 //Kept to get back the old variables
 quad,kthmorningquad:trace0=/mnt/traces/kth/morning/20190507.morning.merged.ip.anon.nopayload.pcap-1557218213.gz-rewriten.pcap
@@ -37,7 +47,6 @@ quad,kthmorningquad:trace3=/mnt/traces/kth/morning/20190507.morning.merged.ip.an
 
 
 %late_variables
-RSS_SPLITTER_OUT=EXPAND(${WORKING_DIR}/out)
 sprayer:RULES=EXPAND(${NPF_TESTIE_PATH}/includes/sprayer-rules/rules-256-${QUEUE}queue)
 sprayer,i40e:RULES=EXPAND(${NPF_TESTIE_PATH}/includes/sprayer-rules/rules-i40e-256-${QUEUE}queue)
 staticmetron|dynamicmetron:RULES=EXPAND(${NPF_TESTIE_PATH}/includes/metron-rules/${PREFIX}rules-ea10000-rr-1024max-${QUEUE})

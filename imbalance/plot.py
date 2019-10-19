@@ -1,8 +1,6 @@
-import matplotlib.pyplot as plt
-import numpy as np
+from common import *
 from matplotlib.lines import Line2D
 import matplotlib.ticker as ticker
-from common import *
 from math import log,pow
 import pandas
 

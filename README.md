@@ -71,7 +71,8 @@ All DPDK experiments need a trace except "shared" and "migration" that generates
  * drop: Figure 12 showing the throughput of the various methods
  * shared: Figure 13 showing the importance of flow-awareness with various concurrency models 
  * migration: Figure 14 about state migration
- * nat: Figure 15 with the realistic NAT+FW experiment. This one will be modified for camera ready.
+ * (nat: Old figure 15 with the emulated NAT+FW+DPI experiment)
+ * real2: New NAT+FW+DPI experiment
  
 ### Other
  * includes: Parameters for experiments
