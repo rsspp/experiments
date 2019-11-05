@@ -57,7 +57,7 @@ You may define the required variables to in [includes/Makefile.include](includes
 ### Modified Kernel on the DUT
 For the kernel experiment you must have our modified Kernel, available at [https://github.com/rsspp/linux](https://github.com/rsspp/linux). If you're not familiar with Kernel compilation, instructions are provided in the README.md file of that repository. It is much easier than it is said to be, and faster too if you have a SSD and append `-j8` where 8 is the number of cores on the machine to all `make` commands to build using multiple cores.
 
-### Install DPDK on both machined
+### Install DPDK on both machines
 Download DPDK 19.02 at [http://dpdk.org](http://dpdk.org). To install, just use ./usertools/setup.py, then choose x86_64-native-linuxapp-gcc, then set up some huge pages, and if you use Intel NICs bind them.
 
 ### Traces
