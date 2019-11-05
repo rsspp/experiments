@@ -18,10 +18,10 @@ While our experiment was done with a 18-cores Xeon for the DUT, results should a
 Prerequisites
 -------------
 
-### NPF
-Download NPF at (https://github.com/tbarbette/npf). Install python3 and python3-pip with your system package manager and the requirements with `pip3 install -r requirements.rxt`. In case of troubles, you may find more help on the README.md page of NPF.
+### NPF (https://github.com/tbarbette/npf)
+Clone the repository with `git clone https://github.com/tbarbette/npf.git && cd npf`. Install python3 and python3-pip with your system package manager (`sudo apt install python3 python3-pip` for Debian-based systems) and the requirements of NPF with `pip3 install --user -r requirements.txt`. In case of troubles, you may find more help on the [README.md page of NPF](https://github.com/tbarbette/npf#network-performance-framework).
 
-You must define the servers and the NICs to be used in the cluster folder of NPF. This is our file for the server:
+You must define the servers and the NICs to be used *in the cluster folder of NPF*. This is our file for the server:
 cluster/server0.node
 ```
 path=/home/tom/npf/
@@ -46,19 +46,36 @@ addr=client0.kth.se
 ```
 The `path` is the path to NPF on the given machine. It is easer to have NPF in an NFS or other mechanism to share a similar folder between the two machines, under the same path. If you don't have such a setup, uncomment nfs=0 at the top of the file.
 
-The `addr` (address) is the address of the machine. Then we define 3 variables per NIC: the interface name, the PCIe address, and the mac address of the NIC. Note that these interfaces are real interfaces, as RSS++ is focusing on dispatching packets in hardware. You may obtain the PCIe address of the interface you want to use with `sudo lshw -c network -businfo`.
+The `addr` (address) is the address of the machine.
 
-These informations are used by NPF to automatically replace references in scripts.
+Then we define 3 variables per NIC: the interface name, the PCIe address, and the mac address of the NIC. Note that these interfaces are real interfaces, as RSS++ is focusing on dispatching packets in hardware. You may obtain the PCIe address of the interface you want to use with `sudo lshw -c network -businfo`. The NIC informations are used by NPF to automatically replace references in scripts.
 
 ### Makefiles configuration
 As discussed below, all experiments are easily launched using a single Makefile per experiment. As a few parameters depend on your environment (such as the path to the folder where you checked out NPF), we have a single "include" file that resides in the "includes" folder of this repository which is included by all per-experiment Makefiles to set common parameters.
 You may define the required variables to in [includes/Makefile.include](includes/Makefile.include). Set `NPF_PATH=path/to/npf` correctly, and change the name of the roles only if you used a different name than "cluster/server0.node" and "cluster/client0.node" for the NPF cluster configuration files.
 
 ### Modified Kernel on the DUT
-For the kernel experiment you must have our modified Kernel, available at [https://github.com/rsspp/linux](https://github.com/rsspp/linux). If you're not familiar with Kernel compilation, instructions are provided in the README.md file of that repository. It is much easier than it is said to be, and faster too if you have a SSD and append `-j8` where 8 is the number of cores on the machine to all `make` commands to build using multiple cores.
+For the kernel experiment you must have our modified Kernel, available at [https://github.com/rsspp/linux](https://github.com/rsspp/linux). If you're not familiar with Kernel compilation, instructions are provided in the README.md file of that repository. It is much easier than it is said to be, and faster too if you have a SSD and append `-j8` where 8 is the number of cores on the machine to all `make` commands to build using multiple cores. In a nutshell, those steps should be sufficient for Ubuntu 18.04:
+```
+MAKEFLAGS=-j8
+git clone https://github.com/rsspp/linux.git
+cd linux
+sudo apt install build-essential libncurses5-dev flex bison openssl libssl-dev libelf-dev libudev-dev libpci-dev libiberty-dev autoconf
+cp /boot/config-$(uname -r) .config && make olddefconfig
+make bzImage && make modules
+sudo make modules install && sudo make install
+sudo reboot
+```
 
 ### Install DPDK on both machines
-Download DPDK 19.02 at [http://dpdk.org](http://dpdk.org). To install, just use ./usertools/setup.py, then choose x86_64-native-linuxapp-gcc, then set up some huge pages, and if you use Intel NICs bind them.
+Download DPDK 19.02 at [http://dpdk.org](http://dpdk.org), or directly with `wget http://fast.dpdk.org/rel/dpdk-19.02.tar.xz && tar -Jxvf dpdk-19.02.tar.xz  && cd dpdk-19.02`. To install, just use the interactive menu in `./usertools/setup.py`, then choose x86_64-native-linuxapp-gcc, then set up some huge pages, and if you use Intel NICs bind them.
+
+For NPF to be able to build RSS++ automatically (and any DPDK application), you must export the RTE_SDK and RTE_TARGET variables. Edit your .bashrc and add:
+```
+export RTE_SDK=/home/tom/dpdk
+export RTE_TARGET=x86_64-native-linuxapp-gcc
+```
+Modifying values according to your environment.
 
 ### Traces
 Most DPDK experiments use a trace, as a workload to various benchmarks. Unfortunately we cannot share our campus trace.
