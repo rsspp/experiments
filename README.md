@@ -68,7 +68,7 @@ sudo reboot
 ```
 
 ### Install DPDK on both machines
-Download DPDK 19.02 at [http://dpdk.org](http://dpdk.org), or directly with `wget http://fast.dpdk.org/rel/dpdk-19.02.tar.xz && tar -Jxvf dpdk-19.02.tar.xz  && cd dpdk-19.02`. To install, just use the interactive menu in `./usertools/setup.py`, then choose x86_64-native-linuxapp-gcc, then set up some huge pages, and if you use Intel NICs bind them.
+Download DPDK 19.02 at [http://dpdk.org](http://dpdk.org), or directly with `wget http://fast.dpdk.org/rel/dpdk-19.02.tar.xz && tar -Jxvf dpdk-19.02.tar.xz  && cd dpdk-19.02`. Install DPDK's dependencies with `sudo apt install libnuma-dev build-essential python`. To compile DPDK, just use the interactive menu in `./usertools/setup.py`, then choose x86_64-native-linuxapp-gcc, then set up some huge pages, and if you use Intel NICs bind them.
 
 For NPF to be able to build RSS++ automatically (and any DPDK application), you must export the RTE_SDK and RTE_TARGET variables. Edit your .bashrc and add:
 ```
@@ -89,7 +89,7 @@ Summary of content
 
 ### Experiments
 The following folders contain the Makefile for the experiment, that basically calls NPF with one of the two testies. Some experiment folders contain the generated data and plots.
-All experiments folder contain a "README.md" file that explains them further.
+All experiments folder *will* contain a "README.md" file that explains them further.
 
 #### Kernel
  * heatmap: Figure 1 and Figure 3, showing the iPerf2 test. It is driven by kernel.testie, that is fairly readable. This experiment does *not* needs a trace as it uses iPerf.
