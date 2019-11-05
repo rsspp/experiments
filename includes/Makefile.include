@@ -1,6 +1,6 @@
 NPF_PATH=/home/tom/npf/
-NPF_SERVER=nslrack14-100G,nic=1
-NPF_CLIENT=nslrack11-100G,nic=0
+NPF_SERVER=server0,nic=0
+NPF_CLIENT=client0,nic=0
 
 NPF_FLAGS="--show-full"
 
