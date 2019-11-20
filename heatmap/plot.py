@@ -11,6 +11,8 @@ def lighter(c, p, n):
     n = n / 255.
     return tuple(a * p + (1-p) * n for a in c)
 
+fname = "results"
+fnamertt = "results-3"
 
 step = 10
 tm = step * 3
@@ -24,7 +26,7 @@ colors = [(c1/255.0,c2/255.0,c3/255.0) for c1,c2,c3 in colors]
 cpus = []
 
 for i in range(18):
-    data = np.genfromtxt("results/CPU-%d.csv" % i)
+    data = np.genfromtxt(fname + "/CPU-%d.csv" % i)
     cpus.append(np.asarray(data)[:,1])
 
 cpus = np.asarray(cpus)
@@ -78,8 +80,8 @@ fig, ax1 = plt.subplots()
 #bw = np.genfromtxt("results-3/BW.csv")
 #rtt = np.genfromtxt("results-3/RTT.csv")
 #ax1 = plt.gca()
-bw = pandas.read_csv("results/BW.csv", header=None, engine="python",delim_whitespace=True,index_col=False).to_numpy()
-rtt = pandas.read_csv("results-3/RTT.csv", header=None, engine="python",delim_whitespace=True,index_col=False).to_numpy()
+bw = pandas.read_csv(fname + "/BW.csv", header=None, engine="python",delim_whitespace=True,index_col=False).to_numpy()
+rtt = pandas.read_csv(fnamertt + "/RTT.csv", header=None, engine="python",delim_whitespace=True,index_col=False).to_numpy()
 
 s=bw[:,0]
 speed=bw[:,1] / 1000000000

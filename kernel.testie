@@ -67,6 +67,7 @@ CONGESTION=cubic
 
 //Option to not use RSS++. Set to 1 to disable RSS++ activation. It is important to verify that the RTT variation is not just an effect of time. And it is not.
 NORSSPP=0
+nonsharded:NORSSPP=1
 
 //UDP. IPerf did not like it much, not sure what was the problem
 udp:UDPSRV=-u -b 90G
@@ -77,6 +78,13 @@ udp:UDPCLI=-u
 //Add --tags gdb to run RSS++ GDB. But I don't see why you would do that. There is, of course, no bugs in RSS++!
 gdb:GDB=gdb -ex run -ex "signal 2" -ex "bt" -batch -args
 GDB?=
+
+//Non-sharded mode. Not compatible with RSS++ (one will mess the other)
+IRQBALANCE=stop
+SHARDED=1
+nonsharded:IRQBALANCE=start
+nonsharded:SHARDED=0
+
 
 %include ./testie.d/common.testie
 %include ./testie.d/traces.testie
@@ -91,7 +99,7 @@ GDB?=
 which iperf
 sudo ifconfig ${client:0:ifname} 10.220.0.1 netmask 255.255.255.0
 sudo sysctl -w net.ipv4.tcp_congestion_control=$CONGESTION
-taskset -a -c 0-$CPU iperf -c 10.220.0.5 -p 8822 -P $FLOWS -t 200 $UDPCLI --reportstyle C -e -i 1 | tee stats.csv
+taskset -a -c 0-15 iperf -c 10.220.0.5 -p 8822 -P $FLOWS -t 200 $UDPCLI --reportstyle C -e -i 1 | tee stats.csv
 
 //At the end of the test, parse stats.csv
 %exit@client
@@ -103,22 +111,35 @@ python3 iperf_parse.py
 %script@server sudo=true deps=iperf-rsspp name=IPerfServer
 echo $PATH
 which iperf
+service irqbalance $IRQBALANCE &> /dev/null
 //Apply frequency, and chosen parameters
 (cd ${LINUX_PATH}/tools/power/cpupower/ &&  LD_LIBRARY_PATH=. ${LINUX_PATH}/tools/power/cpupower/cpupower frequency-set -u ${FREQ}M -d ${FREQ}M)
 ifconfig ${server:0:ifname} 10.220.0.5 netmask 255.255.255.0
 sysctl -w net.ipv4.tcp_congestion_control=$CONGESTION
-ethtool -L ${server:0:ifname} combined $CPU //Number of queues
-ethtool -X ${server:0:ifname} equal $CPU //Hashing of RSS
+#Number of queues
+ethtool -L ${server:0:ifname} combined $CPU
+sleep 1
+#Hashing of RSS
+ethtool -X ${server:0:ifname} equal $CPU hfunc toeplitz
+sleep 1
 set_irq_affinity.sh ${server:0:ifname}
+echo "EVENT ServerConfigured"
 bash server.sh
 
 %file@server server.sh
 killall -9 iperf
 //Launch one iperf server per CPU
-for i in {0..$CPU} ; do 
-    sleep 0.1
-    iperf -s -E -H -A -a $i $UDPSRV -e -p 8822 &
-done
+
+if [ $SHARDED -eq 1 ] ; then
+    echo "Sharded mode"
+    for i in {0..$(($CPU - 1))} ; do
+        sleep 0.1
+        iperf -s -E -A -a $i $UDPSRV -e -p 8822 &
+    done
+else
+    echo "Non sharded"
+    taskset -a -c 0-$(($CPU - 1)) iperf -s $UDPSRV -e -p 8822 &
+fi
 wait
 echo "Server finished"
 
@@ -129,8 +150,6 @@ echo "Server finished"
 
 //Run RSS++ itself
 %script@server sudo=true delay=1 deps=rsspp
-cp script.click ~/npf/build/metron
-cd ~/npf/build/metron
 $GDB click -j $CPU script.click CLICK_PATH=$(dirname $(which click))/../
 
 //RSS++ configuration file :
