@@ -8,15 +8,37 @@ traces = ["kthmorningsingle", "kthmorningquad"] #, "caida18"]
 
 traces_names=["Campus (4Gbps)","Campus #4 (15Gbps)"] #, "CAIDA (3.5Gbps)"]
 
-series= ["RSS", "Sprayer", "Software_Shared_Queue", "Software_RR_Queue", "Software_Stateful_RR", "Software_Stateful_Load", "Metron_Dynamic", "RSSPP"]
 
-labels= ["RSS", "Sprayer", "SW Shared Queue", "SW RR Queues", "SW Stateful RR", "SW Stateful Load", "Traffic-Class", "RSS++"]
-tcolors = [ c_rss, c_sprayer, light_orange, dark_orange, light_red, dark_red, c_metron, c_rsspp ]
+#Which series to show. Useful for presentation
+
+if False:
+    series= ["RSS", "RSSPP"]
+    labels= ["RSS", "RSS++"]
+    tcolors = [ c_rss, c_rsspp ]
+
+if False:
+    series= ["RSS", "Sprayer", "Software_Shared_Queue", "Software_RR_Queue", "RSSPP"]
+    labels= ["RSS", "Sprayer", "SW RR Queues", "RSS++"]
+    tcolors = [ c_rss, c_sprayer, light_orange, dark_orange, c_rsspp ]
+
+if False:
+    series= ["RSS", "Sprayer", "Software_Shared_Queue", "Software_RR_Queue", "Software_Stateful_RR", "Software_Stateful_Load", "RSSPP"]
+    labels= ["RSS", "Sprayer", "SW Shared Queue", "SW RR Queues", "SW Stateful RR", "SW Stateful Load", "RSS++"]
+
+    tcolors = [ c_rss, c_sprayer, light_orange, dark_orange, light_red, dark_red, c_rsspp ]
+
+if True:
+    series= ["RSS", "Sprayer", "Software_Shared_Queue", "Software_RR_Queue", "Software_Stateful_RR", "Software_Stateful_Load", "Metron_Dynamic", "RSSPP"]
+    labels= ["RSS", "Sprayer", "SW Shared Queue", "SW RR Queues", "SW Stateful RR", "SW Stateful Load", "Traffic-Class", "RSS++"]
+    tcolors = [ c_rss, c_sprayer, light_orange, dark_orange, light_red, dark_red, c_metron, c_rsspp ]
+
+
 
 tmarkers = markers
 
 tmarkers[labels.index("RSS++")] = 'd'
 
+ext = 'svg'
 
 print("Plotting THROUGHPUT per core")
 cores = range(1,17)
@@ -69,7 +91,7 @@ for trace in traces:
     #ax2.set_xticks(t)
     fig.tight_layout()  # otherwise the right y-label is slightly clipped
 
-    plt.savefig('throughput-all-%s.pdf' % trace)
+    plt.savefig('throughput-all-%s.%s' % (trace,ext))
 
 
 
@@ -141,7 +163,7 @@ for trace in traces:
     #ax2.set_xticks(t)
     fig.tight_layout()  # otherwise the right y-label is slightly clipped
 
-    plt.savefig('imbalance-%s.pdf' % trace)
+    plt.savefig('imbalance-%s.%s' % (trace,ext))
   except Exception as e:
       print(e)
       pass
@@ -219,7 +241,7 @@ for trace in traces:
     #ax2.set_xticks(t)
     fig.tight_layout()  # otherwise the right y-label is slightly clipped
 
-    name='imbalance-all-%s.pdf' % trace
+    name='imbalance-all-%s.%s' % (trace,ext)
     print("Writing %s..." % name)
     plt.savefig(name)
 
@@ -303,7 +325,7 @@ for trace in traces:
     #ax2.set_xticks(t)
     fig.tight_layout()  # otherwise the right y-label is slightly clipped
 
-    plt.savefig('imbalance-load-%s.pdf' % trace)
+    plt.savefig('imbalance-load-%s.%s' % (trace,ext))
 
 
 plt.clf()
@@ -393,4 +415,4 @@ ax2.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: "%d" % (x)))
 #ax2.set_xticks(t)
 fig.tight_layout()  # otherwise the right y-label is slightly clipped
 
-plt.savefig('imbalance.pdf')
+plt.savefig('imbalance.%s' % ext)
