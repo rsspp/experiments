@@ -10,6 +10,7 @@ labels = [ "Shared", "Per-bucket" ]
 
 f = "migration-udp-cx5"
 
+ext = "svg"
 
 data_a_s = []
 data_b_s = []
@@ -116,7 +117,7 @@ for vl in leg._legend_box.get_children():
 #ax1.add_artist(leg1)
 plt.tight_layout()
 
-plt.savefig('migration.pdf')
+plt.savefig('migration.'+ext)
 
 plt.clf()
 
