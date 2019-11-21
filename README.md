@@ -1,13 +1,14 @@
 RSS++ Experiments
 =================
 
-This folder contains one sub-folder per experiment. Some figures of RSS++ paper relate to the same experiment.
+This repository focuses on reproducing experiments, the code of RSS++ itself is available at https://github.com/rsspp/fastclick.
+This folder contains one sub-folder per experiment. Some figures of RSS++ paper relate to the same experiment. 
 
-Experiments have "make test" and "make graph". "make" alone will do both.
+Experiments have Makefiles that implement "make test" and "make graph". "make" alone will do both.
 
-All tests use NPF to orchestrate experiments. Be sure to set the path to NPF in Makefile.include. While NPF generates graph automatically, we preferred to make fine-tuned graphs using matplotlib ourselves.
+All tests use NPF to orchestrate experiments. Be sure to set the path to NPF in Makefile.include and all dependencies as described below. While NPF generates graph automatically, we preferred to make fine-tuned graphs using matplotlib ourselves. For some experiments, the data in CSV is provided in this repository, allowing to generate the graphs.
 
-NPF will download and build all dependencies, including RSS++ by itself. However there are two things you must do by yourself:
+NPF will download and build all dependencies, including RSS++ by itself. However there are a few things to consider and you must do by yourself:
 
 Testbed
 -------
@@ -48,7 +49,7 @@ The `path` is the path to NPF on the given machine. It is easer to have NPF in a
 
 The `addr` (address) is the address of the machine.
 
-Then we define 3 variables per NIC: the interface name, the PCIe address, and the mac address of the NIC. Note that these interfaces are real interfaces, as RSS++ is focusing on dispatching packets in hardware. You may obtain the PCIe address of the interface you want to use with `sudo lshw -c network -businfo`. The NIC informations are used by NPF to automatically replace references in scripts.
+Then we define 3 variables per NIC: the interface name, the PCIe address, and the MAC address of the NIC. Note that these interfaces are real interfaces, as RSS++ is focusing on dispatching packets in hardware. You may obtain the PCIe address of the interface you want to use with `sudo lshw -c network -businfo`. The NIC informations are used by NPF to automatically replace references in scripts.
 
 ### Makefiles configuration
 As discussed below, all experiments are easily launched using a single Makefile per experiment. As a few parameters depend on your environment (such as the path to the folder where you checked out NPF), we have a single "include" file that resides in the "includes" folder of this repository which is included by all per-experiment Makefiles to set common parameters.
@@ -79,7 +80,7 @@ Modifying values according to your environment.
 
 ### Traces
 Most DPDK experiments use a trace, as a workload to various benchmarks. Unfortunately we cannot share our campus trace.
-Look at the paper to find the characteristics of the trace (one trace at 4Gbps, one "accelerated" at 15Gbps in the paper). One can use CAIDA 2018 traces but its relatively small speed limits reproducibility of the experiments with their current parameter (remember RSS++ aims to keep the CPU load at a high level, if the trace runs slower, you need to use less cores/more load on the DUT to a somehow unrealistic extent, which is why we used our own). You may use [our script](traces/) to accelerate your trace. Sprayer emulation also needs the trace [to be rewritten](traces/) (for experiments imbalance, latency, drop and nat), and similarly metron emulation needs rules specific to each traces to dispatch "traffic classes".
+Look at the paper to find the characteristics of the trace (one trace at 4Gbps, one "accelerated" at 15Gbps in the paper). One can use CAIDA 2018 traces but its relatively small speed limits reproducibility of the experiments with their current parameter (remember RSS++ aims to keep the CPU load at a high level, if the trace runs slower, you need to use less cores/more load on the DUT to a somehow unrealistic extent, which is why we used our own). You may use [our script](traces/) to accelerate your trace. Sprayer emulation also needs the trace [to be rewritten](traces/) (for experiments imbalance, latency, drop and nat), and similarly Metron emulation needs rules specific to each traces to dispatch "traffic classes".
 
 Change the line `kthmorningsingle:trace=XX` and `kthmorningquad:trace=YY` in testie.d/traces.testie to change the path to your own trace files.
 
