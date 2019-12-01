@@ -105,7 +105,7 @@ wpf:graph_lines={-,:}
 //Cycles counting method
 CYCLES=cycles
 pianorss:CYCLES=cyclesqueue
-tunecycles:CYCLES={cycles,cyclesqueue} //Try both
+tunecycles:CYCLES={cycles,cyclesqueue,queue} //Try all
 
 //Size of the RETA table
 RETA_SIZE=512
@@ -219,6 +219,7 @@ hfw:FWSIZE=half
 %late_variables
 R?=0
 S?=1
+FWIGNORE?=2
 
 
 //Default CPU freq
@@ -691,13 +692,13 @@ elementclass Processer { $thread, $active |
     StaticThreadSched(uq $thread);
 }
 
-	legit :: AverageCounterMP()
+	legit :: AverageCounterIMP(IGNORE $FWIGNORE)
     ->  ps :: PaintSwitch()[0-$(( $CURMAX - 1  ))] => queuecount :: {
         $COUNTERS
     }
     $PROCESSER_FNT
     -> td0;
-    dropped :: AverageCounterMP();
+    dropped :: AverageCounterIMP(IGNORE $FWIGNORE);
     dropped -> Discard;
 
 
@@ -868,11 +869,11 @@ fd0 :: FromDPDKDevice(PORT $iface, N_QUEUES $queuesNb, NUMA $numa, THREADOFFSET 
 //	-> IPPrint(LENGTH true)
 	-> Unstrip(14)
     -> pip :: Pipeline()
-	-> legit :: AverageCounterMP()
+	-> legit :: AverageCounterIMP(IGNORE $FWIGNORE)
 $PROCESSER_FNT
 	-> td0;
 
-dropped :: AverageCounterMP();
+dropped :: AverageCounterIMP();
 
 classifier[1] -> Print(NonIPv4) -> dropped;
 check[1] -> dropped;

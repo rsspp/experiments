@@ -134,7 +134,7 @@ if [ $SHARDED -eq 1 ] ; then
     echo "Sharded mode"
     for i in {0..$(($CPU - 1))} ; do
         sleep 0.1
-        iperf -s -E -A -a $i $UDPSRV -e -p 8822 &
+        taskset -a -c $i-$i iperf -s -E -A -a $i $UDPSRV -e -p 8822 &
     done
 else
     echo "Non sharded"

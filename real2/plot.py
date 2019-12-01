@@ -16,7 +16,25 @@ t=["FW","FWNAT","FWNATDPI"]
 labelss=["RSS", "Sprayer", "RSS++"]
 labelst=["FW", "FW+NAT", "FW+NAT+DPI"]
 
+suffix=""
+
 linestyles = ['-','--',':']
+fillstyle = ''
+fill=True
+ext='pdf'
+
+#FwNat mode only
+if True:
+    suffix="-fwnat"
+    t=["FWNAT"]
+    labelst=[""]
+
+#Presenter mode
+if False:
+    linestyles = ['none']
+    fillstyle = 'none'
+    fill=False
+
 
 exp_time=80
 
@@ -89,13 +107,21 @@ for trace in traces:
         #X = data[:,0]
         X = cores
         med = [np.median(d) for d in data]
+        avg = [np.average(d) for d in data]
         err = [np.std(d) for d in data ]
         #med = data[:,1] #np.nanmedian(data[:,1:],axis=1)
 
         #th = [np.nanmean(th[1:]) for th in th_s[i]]
         #f = th > X*0.95
 
-        rects = ax2.errorbar(X, med, yerr=err, color=scolor, marker=tmarkers[int(i % 3)], linestyle=linestyles[int(i / 3)], label=labels[i])
+        rects = ax2.plot(X, med, color=scolor, marker=tmarkers[int(i % 3)], linestyle=linestyles[int(i / 3)], label=labels[i], fillstyle=fillstyle)
+
+        if fill:
+            rects = ax2.fill_between(X, [np.percentile(d,25) for d in data], [np.percentile(d,75) for d in data], color=list(scolor) + [0.25])
+        else:
+            rects = ax2.errorbar(X, y=avg, yerr=err, label=None, linestyle='none')
+
+
 
    #t = np.arange(7) * 5
     #ax2.set_xlim(-0.5,exp_time + 0.5)
@@ -120,7 +146,7 @@ for trace in traces:
     ax2.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: "%d" % (x)))
     fig.tight_layout()  # otherwise the right y-label is slightly clipped
     plt.subplots_adjust(top=0.80)
-    name = 'nat-%s.pdf' % trace
+    name = 'nat-%s%s.%s' % (trace, suffix, ext)
     plt.savefig(name)
 
     print("Generated %s" % name)
