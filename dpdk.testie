@@ -105,7 +105,17 @@ wpf:graph_lines={-,:}
 //Cycles counting method
 CYCLES=cycles
 pianorss:CYCLES=cyclesqueue
-tunecycles:CYCLES={cycles,cyclesqueue,queue} //Try all
+tunecycles:CYCLES={cycles,cyclesqueue,queue} //Try both
+
+//Usage of flow mark as an optimization
+FMARK=true
+VMARK=true
+DOMARK=true
+tunemark:FMARK={true,false}
+tunemark:VMARK={true,false}
+nomark:FMARK=false
+nomark:VMARK=false
+nomark:DOMARK=false
 
 //Size of the RETA table
 RETA_SIZE=512
@@ -258,7 +268,7 @@ nat:FRESERVE=0
 migration:MIGRATIONT=2
 migration:PQOSCORE=2
 
-migration|nat:PROCESSER_FNT=EXPAND(-> manager :: FlowIPManager(CAPACITY $(( int(6553600 / 128) )) , RESERVE $FRESERVE, GROUPS $RETA_SIZE, DEF_THREAD $QUEUE, VERBOSE 0) )
+migration|nat:PROCESSER_FNT=EXPAND(-> manager :: FlowIPManager(CAPACITY $(( int(6553600 / 128) )) , RESERVE $FRESERVE, GROUPS $RETA_SIZE, DEF_THREAD $QUEUE, VERBOSE 0, MARK $FMARK) )
 migration,shared|nat,shared:PROCESSER_FNT=EXPAND(-> manager :: FlowIPManagerMP(CAPACITY 6553600 , RESERVE $FRESERVE) )
 migration,-shared|nat,-shared:MANAGER_OPT=, MANAGER manager
 MANAGER_OPT?=
@@ -801,7 +811,7 @@ s :: Script(
 
 
 %file@p rx-metron.click
-balancer :: DeviceBalancer(DEV fd0, METHOD "metron", CONFIG $RULES, CPUS $queuesNb, VERBOSE $BVERBOSE, TARGET $METRONTARGET, STARTCPU -1, UNDERLOAD 0.35, OVERLOAD 0.65, AUTOSCALE $AUTOSCALE, CYCLES $CYCLES, MIN_MOVEMENT $MINMVMT, TIMER $BALANCE_PERIOD, ACTIVE $DBACTIVE);
+balancer :: DeviceBalancer(DEV fd0, METHOD "metron", CONFIG $RULES, CPUS $queuesNb, VERBOSE $BVERBOSE, TARGET $METRONTARGET, STARTCPU -1, UNDERLOAD 0.35, OVERLOAD 0.65, AUTOSCALE $AUTOSCALE, CYCLES $CYCLES, MIN_MOVEMENT $MINMVMT, TIMER $BALANCE_PERIOD, ACTIVE $DBACTIVE, MARK $DOMARK);
 
 StaticThreadSched(balancer $BTHREAD)
 
@@ -851,7 +861,7 @@ StaticThreadSched(a $MONTHREAD);
 
 fd0
 //    -> rss :: RSSVerifier(MASK 511, CPU $QUEUE)
-      -> agg :: AggregateCounterVector(MASK $(( int($RETA_SIZE - 1) )) )
+      -> agg :: AggregateCounterVector(MASK $(( int($RETA_SIZE - 1) )) , MARK $VMARK)
 
 %file@p rx-none.click
 
