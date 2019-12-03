@@ -17,7 +17,7 @@ print("Plotting tail latency according to load")
 cores = range(1,16)
 fill = False
 
-ext = 'svg'
+ext = 'pdf'
 
 suffixes = ['','-fw']
 
@@ -95,5 +95,6 @@ for suffix in suffixes:
 
 
     plt.clf()
+
 
 
