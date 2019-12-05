@@ -77,7 +77,7 @@ for suffix in suffixes:
         plt.grid(True, axis="y")
         #ax2.set_yscale("symlog")
         #ax2.set_ylim(32,2048)
-        ax2.set_ylim(0)
+        ax2.set_ylim(0,100 if suffix == '-fw' else None)
         #ax2.set_yticks([32,64,128,256,512,1024,2048])
         ax2.set_xlim(0.5)
         ax2.set_xticks(np.arange(int(max(cores)  / 2) + 1) * 2 + 1)
