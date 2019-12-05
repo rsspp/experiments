@@ -8,92 +8,112 @@ traces = ["kthmorningsingle", "kthmorningquad"] #, "caida18"]
 
 traces_names=["Campus (4Gbps)","Campus #4 (15Gbps)"] #, "CAIDA (3.5Gbps)"]
 
+legend_ncol=2
 
-#Which series to show. Useful for presentation
+fillstyle = None
+linestyle = None
+fill = True
+log_scale = True
+single_log_scale = False
 
+#Which series to show. Useful for presentation mode
 if False:
+    fillstyle = 'none'
+    linestyle = 'none'
+    log_scale = False
+    fill = False
     series= ["RSS", "RSSPP"]
     labels= ["RSS", "RSS++"]
     tcolors = [ c_rss, c_rsspp ]
 
 if False:
-    series= ["RSS", "Sprayer", "Software_Shared_Queue", "Software_RR_Queue", "RSSPP"]
-    labels= ["RSS", "Sprayer", "SW RR Queues", "RSS++"]
-    tcolors = [ c_rss, c_sprayer, light_orange, dark_orange, c_rsspp ]
+    series= ["RSS", "Sprayer", "Software_RR_Queue", "RSSPP"]
+    labels= ["RSS", "Sprayer", "SW RR", "RSS++"]
+    tcolors = [ c_rss, c_sprayer, dark_orange, c_rsspp ]
 
 if False:
-    series= ["RSS", "Sprayer", "Software_Shared_Queue", "Software_RR_Queue", "Software_Stateful_RR", "Software_Stateful_Load", "RSSPP"]
-    labels= ["RSS", "Sprayer", "SW Shared Queue", "SW RR Queues", "SW Stateful RR", "SW Stateful Load", "RSS++"]
+    series= ["RSS", "Sprayer", "Software_RR_Queue", "Software_Stateful_RR", "Software_Stateful_Load", "RSSPP"]
+    labels= ["RSS", "Sprayer", "SW RR", "SW Stateful RR", "SW Stateful Load", "RSS++"]
 
-    tcolors = [ c_rss, c_sprayer, light_orange, dark_orange, light_red, dark_red, c_rsspp ]
+    tcolors = [ c_rss, c_sprayer, dark_orange, light_red, dark_red, c_rsspp ]
+    legend_ncol=3
+
+if True:
+    series= ["RSS", "Sprayer", "Software_RR_Queue", "Software_Stateful_RR", "Software_Stateful_Load", "Metron_Dynamic", "RSSPP"]
+    labels= ["RSS", "Sprayer", "SW RR", "SW Stateful RR", "SW Stateful Load", "Traffic-Class", "RSS++"]
+    tcolors = [ c_rss, c_sprayer, light_orange, dark_orange, light_red, dark_red, c_metron, c_rsspp ]
+    legend_ncol=3
 
 if True:
     series= ["RSS", "Sprayer", "Software_Shared_Queue", "Software_RR_Queue", "Software_Stateful_RR", "Software_Stateful_Load", "Metron_Dynamic", "RSSPP"]
+
     labels= ["RSS", "Sprayer", "SW Shared Queue", "SW RR Queues", "SW Stateful RR", "SW Stateful Load", "Traffic-Class", "RSS++"]
     tcolors = [ c_rss, c_sprayer, light_orange, dark_orange, light_red, dark_red, c_metron, c_rsspp ]
-
-
 
 tmarkers = markers
 
 tmarkers[labels.index("RSS++")] = 'd'
 
-ext = 'svg'
+ext = 'pdf'
 
-print("Plotting THROUGHPUT per core")
-cores = range(1,17)
-for trace in traces:
-    try:
-        print("Reading trace %s" % trace)
-        data_s_c = []
-        for serie in series:
-          data_s = []
-          for core in cores:
-            #Sprayer_-_Number_of_processing_cores__9MIN-MAX-LOAD-PKTS-RATIO.csv
-            data = np.genfromtxt("imbalance-all-%s/%s_-_Number_of_processing_cores__%dIGTHROUGHPUT.csv" % (trace, serie, core))
-            data = data[ (data[:,0] < 50) & (data[:,0] > 5) ]
-            #print(data)
-            data_s.append(data)
-          data_s_c.append(data_s)
-    except Exception as e:
-        print("While reading trace %s:" % trace)
-        print(e)
-        continue
-
-    plt.clf()
-    plt.rcParams["figure.figsize"] = (6,3)
-    fig, ax1 = plt.subplots()
-
-    ax2 = ax1
-
-    #rcolor = darker(colors[1])
-    #ax2.set_ylabel('Packets in queues', color=rcolor)  # we already handled the x-label with ax1
-
-    ax2.set_ylabel('Throughput (Gbps)')
-
-    for i,data_s in enumerate(data_s_c):
-
-        scolor = tcolors[i]
-        rects = ax2.plot(cores, [np.median(data[:,1:]) for data in data_s], color=scolor,marker=tmarkers[i],label=labels[i])
-
-        rects = ax2.fill_between(cores, [np.percentile(data[:,1:],25) for data in data_s], [np.percentile(data[:,1:],75) for data in data_s], color=list(scolor) + [0.25])
-
-    ax2.set_ylim(0)
-
-    ax2.set_xlim(min(cores)-0.5,max(cores) + 0.5)
-    #t = np.arange(7) * 5
-    #ax2.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: "%d" % (x)))
-
-    plt.grid(True, axis="y")
-    #ax2.set_yscale("symlog")
-    #ax2.legend()
-    ax2.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: "%d" % (x)))
-    #ax2.set_xticks(t)
-    fig.tight_layout()  # otherwise the right y-label is slightly clipped
-
-    plt.savefig('throughput-all-%s.%s' % (trace,ext))
-
-
+#Unshown throughput per core. Was shown in the drop experiment that is more tailored to show that
+#print("Plotting THROUGHPUT per core")
+#cores = range(1,17)
+#for trace in traces:
+#    try:
+#        print("Reading trace %s" % trace)
+#        data_s_c = []
+#        for serie in series:
+#          data_s = []
+#          for core in cores:
+#            #Sprayer_-_Number_of_processing_cores__9MIN-MAX-LOAD-PKTS-RATIO.csv
+#            data = np.genfromtxt("imbalance-all-%s/%s_-_Number_of_processing_cores__%dIGTHROUGHPUT.csv" % (trace, serie, core))
+#            data = data[ (data[:,0] < 50) & (data[:,0] > 5) ]
+#            #print(data)
+#            data_s.append(data)
+#          data_s_c.append(data_s)
+#    except Exception as e:
+#        print("While reading trace %s:" % trace)
+#        print(e)
+#        continue
+#
+#    plt.clf()
+#    plt.rcParams["figure.figsize"] = (6,3)
+#    fig, ax1 = plt.subplots()
+#
+#    ax2 = ax1
+#
+#    #rcolor = darker(colors[1])
+#    #ax2.set_ylabel('Packets in queues', color=rcolor)  # we already handled the x-label with ax1
+#
+#    ax2.set_ylabel('Throughput (Gbps)')
+#
+#    for i,data_s in enumerate(data_s_c):
+#
+#        scolor = tcolors[i]
+#        rects = ax2.plot(cores, [np.median(data[:,1:]) for data in data_s], color=scolor,marker=tmarkers[i],label=labels[i],fillstyle=fillstyle)
+#        if fill:
+#            rects = ax2.fill_between(cores, [np.percentile(data[:,1:],25) for data in data_s], [np.percentile(data[:,1:],75) for data in data_s], color=list(scolor) + [0.25])
+#        else:
+#            rects = ax2.errorbar(cores, y=[np.std(data[:,1:]) for data in data_s], color=list(scolor), fillstyle='none',linestyle='none')
+#
+#    ax2.set_ylim(0)
+#
+#    ax2.set_xlim(min(cores)-0.5,max(cores) + 0.5)
+#    #t = np.arange(7) * 5
+#    #ax2.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: "%d" % (x)))
+#
+#    plt.grid(True, axis="y")
+#    if log_scale:
+#        ax2.set_yscale("symlog")
+#    #ax2.legend()
+#    ax2.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: "%d" % (x)))
+#    #ax2.set_xticks(t)
+#    fig.tight_layout()  # otherwise the right y-label is slightly clipped
+#
+#    plt.savefig('throughput-all-%s.%s' % (trace,ext))
+#
+#
 
 plt.clf()
 
@@ -157,7 +177,8 @@ for trace in traces:
     #ax2.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: "%d" % (x)))
 
     plt.grid(True, axis="y")
-    ax2.set_yscale("symlog")
+    if single_log_scale:
+        ax2.set_yscale("symlog")
 
     ax2.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: "%d" % (x)))
     #ax2.set_xticks(t)
@@ -168,7 +189,6 @@ for trace in traces:
       print(e)
       pass
 plt.clf()
-
 
 do_legend = True
 print("Plotting MIN-MAX per core")
@@ -216,9 +236,16 @@ for trace in traces:
         scolor = tcolors[i]
 
         Y = [data[:,1:] for data in data_s]
-
-        rects = ax2.plot(cores, [np.nanmedian(data) for data in Y], color=scolor,marker=tmarkers[i],label=labels[i])
-        rects = ax2.fill_between(cores, [np.nanpercentile(data,25) if len(data) > 0 else np.nan for data in Y], [np.nanpercentile(data,75) if len(data) > 0 else np.nan for data in Y], color=list(scolor) + [0.25])
+        #print([np.nanmedian(data) for data in Y])
+        rects = ax2.plot(cores, [np.nanmedian(data) for data in Y], color=scolor,marker=tmarkers[i],label=labels[i], fillstyle=fillstyle,linestyle=linestyle)
+        print(labels[i])
+        print([np.nanpercentile(data,25) for data in Y ][7])
+        print([np.nanpercentile(data,75) for data in Y][7])
+        print([np.nanmedian(data) for data in Y][7])
+        if fill:
+            rects = ax2.fill_between(cores, [np.nanpercentile(data,25) if len(data) > 0 else np.nan for data in Y], [np.nanpercentile(data,75) if len(data) > 0 else np.nan for data in Y], color=list(scolor) + [0.25])
+        else:
+            rects = ax2.errorbar(cores, y=[np.nanmean(data) if len(data) > 0 else np.nan for data in Y], yerr=[np.nanstd(data) if len(data) > 0 else np.nan for data in Y], color=list(scolor),label=None,linestyle='none')
       except Exception as e:
         print("ERROR while plotting %s" % series[i])
         print(e)
@@ -232,11 +259,12 @@ for trace in traces:
     #ax2.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: "%d" % (x)))
 
     plt.grid(True, axis="y")
-    ax2.set_yscale("symlog")
+    if log_scale:
+        ax2.set_yscale("symlog")
     #ax2.legend()
 
     if do_legend:
-        ax2.legend(ncol=3,bbox_to_anchor=(0.5, 1.),loc="lower center")
+        ax2.legend(ncol=legend_ncol,bbox_to_anchor=(0.5, 1.),loc="lower center")
     ax2.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: "%d" % (x)))
     #ax2.set_xticks(t)
     fig.tight_layout()  # otherwise the right y-label is slightly clipped
@@ -245,88 +273,86 @@ for trace in traces:
     print("Writing %s..." % name)
     plt.savefig(name)
 
-
-
 plt.clf()
 
-
-
-print("CPU load version")
-series_hw= ["RSS", "Sprayer", "Metron_Dynamic", "RSSPP"]
-
-labels_hw= ["RSS", "Sprayer", "Traffic-Class", "RSS++"]
-for trace in traces:
-    print("Reading trace %s" % trace)
-    data_s = []
-    mean_s = []
-    for serie in series_hw:
-
-        #ideal = np.genfromtxt("imbalance-%s/%sIDEAL-LOAD-PER-QUEUE-PKTS.csv" % (trace, serie))
-        #ideal = ideal[ ideal[:,0] < 50 ]
-        data = []
-        data_r = []
-        for queue in range(8):
-            d = np.genfromtxt("imbalance-%s/%s_-_CPU__%dICPU.csv" % (trace,serie,queue))
-            d = d[( d[:,0] < 50) & (d[:,0] > 5) ]
-            #d = np.ediff1d(d[:,1])
-            data_r.append(d[:,1])
-
-        mean = np.asarray([np.mean([ data_r[q][i] for q in range(8) ]) for i in range(len(d))])
-
-        mean_s.append(np.mean(mean))
-        mmax = np.asarray([np.max([ data_r[q][i] for q in range(8) ]) for i in range(len(d))])
-        for queue in range(8):
-            d = mean - (data_r[queue]) # () / mmax
-            data.extend(d * 100)
-        data_s.append(data)
-    plt.clf()
-    plt.rcParams["figure.figsize"] = (6,3.5)
-    fig, ax1 = plt.subplots()
-
-    ax2 = ax1
-
-    assert(len(data_s) == len(labels_hw))
-    #rcolor = darker(colors[1])
-    #ax2.set_ylabel('Packets in queues', color=rcolor)  # we already handled the x-label with ax1
-
-    ax2.set_ylabel('CPU load (%)')
-
-    for i,data in enumerate(data_s):
-        x = [i]
-
-        #time = data[:,0]
-        #rtts = data[:,1:]
-        rtts = data
-        #to plot all
-        #rects = ax2.boxplot(np.transpose(rtts),positions=time)
-        scolor = tcolors[i]
-
-        rects = ax2.boxplot(np.transpose(rtts),positions=x)
-        plt.setp(rects['boxes'], color = scolor)
-        plt.setp(rects['whiskers'], color = scolor)
-        plt.setp(rects['caps'], color = scolor)
-        plt.setp(rects['fliers'], color = scolor)
-        plt.setp(rects['medians'], color = lighter(scolor,0.50,0))
-
-
-        ax2.text((i + 0.5) / len(data_s) , 0.02, "%d%%" % (np.mean(rtts[i]) * 100), horizontalalignment="center", transform=ax2.transAxes, color=scolor, weight="bold")
-    #ax2.tick_params(axis='y', labelcolor=rcolor)
-    #ax2.set_ylim(0)
-    ax2.set_xlim(-0.5,len(data_s) - 0.5)
-    plt.xticks(np.arange(len(data_s)), labels_hw, rotation = 45)
-    #t = np.arange(7) * 5
-    #ax2.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: "%d" % (x)))
-
-    plt.grid(True, axis="y")
-
-    #ax2.set_yscale("symlog")
-
-    #ax2.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: "%d" % (x)))
-    #ax2.set_xticks(t)
-    fig.tight_layout()  # otherwise the right y-label is slightly clipped
-
-    plt.savefig('imbalance-load-%s.%s' % (trace,ext))
-
+# Imbalance in term of load, not used, and needs refinement to work
+#print("CPU load version")
+#series_hw= ["RSS", "Sprayer", "Metron_Dynamic", "RSSPP"]
+#
+#labels_hw= ["RSS", "Sprayer", "Traffic-Class", "RSS++"]
+#for trace in traces:
+#    print("Reading trace %s" % trace)
+#    data_s = []
+#    mean_s = []
+#    for serie in series_hw:
+#
+#        #ideal = np.genfromtxt("imbalance-%s/%sIDEAL-LOAD-PER-QUEUE-PKTS.csv" % (trace, serie))
+#        #ideal = ideal[ ideal[:,0] < 50 ]
+#        data = []
+#        data_r = []
+#        for queue in range(8):
+#            d = np.genfromtxt("imbalance-%s/%s_-_CPU__%dICPU.csv" % (trace,serie,queue))
+#            d = d[( d[:,0] < 50) & (d[:,0] > 5) ]
+#            #d = np.ediff1d(d[:,1])
+#            data_r.append(d[:,1])
+#
+#        mean = np.asarray([np.mean([ data_r[q][i] for q in range(8) ]) for i in range(len(d))])
+#
+#        mean_s.append(np.mean(mean))
+#        mmax = np.asarray([np.max([ data_r[q][i] for q in range(8) ]) for i in range(len(d))])
+#        for queue in range(8):
+#            d = mean - (data_r[queue]) # () / mmax
+#            data.extend(d * 100)
+#        data_s.append(data)
+#    plt.clf()
+#    plt.rcParams["figure.figsize"] = (6,3.5)
+#    fig, ax1 = plt.subplots()
+#
+#    ax2 = ax1
+#
+#    assert(len(data_s) == len(labels_hw))
+#    #rcolor = darker(colors[1])
+#    #ax2.set_ylabel('Packets in queues', color=rcolor)  # we already handled the x-label with ax1
+#
+#    ax2.set_ylabel('CPU load (%)')
+#
+#    for i,data in enumerate(data_s):
+#        x = [i]
+#
+#        #time = data[:,0]
+#        #rtts = data[:,1:]
+#        rtts = data
+#        #to plot all
+#        #rects = ax2.boxplot(np.transpose(rtts),positions=time)
+#        scolor = tcolors[i % len(tcolors)]
+#
+#        rects = ax2.boxplot(np.transpose(rtts),positions=x)
+#        plt.setp(rects['boxes'], color = scolor)
+#        plt.setp(rects['whiskers'], color = scolor)
+#        plt.setp(rects['caps'], color = scolor)
+#        plt.setp(rects['fliers'], color = scolor)
+#        plt.setp(rects['medians'], color = lighter(scolor,0.50,0))
+#
+#
+#        ax2.text((i + 0.5) / len(data_s) , 0.02, "%d%%" % (np.mean(rtts[i]) * 100), horizontalalignment="center", transform=ax2.transAxes, color=scolor, weight="bold")
+#    #ax2.tick_params(axis='y', labelcolor=rcolor)
+#    #ax2.set_ylim(0)
+#    ax2.set_xlim(-0.5,len(data_s) - 0.5)
+#    plt.xticks(np.arange(len(data_s)), labels_hw, rotation = 45)
+#    #t = np.arange(7) * 5
+#    #ax2.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: "%d" % (x)))
+#
+#    plt.grid(True, axis="y")
+#
+#    if log_scale:
+#        ax2.set_yscale("symlog")
+#
+#    #ax2.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: "%d" % (x)))
+#    #ax2.set_xticks(t)
+#    fig.tight_layout()  # otherwise the right y-label is slightly clipped
+#
+#    plt.savefig('imbalance-load-%s.%s' % (trace,ext))
+#
 
 plt.clf()
 
@@ -409,7 +435,7 @@ b = ax2.bar(xpos , height=h, width=sspace, color=[lighter(grey,.12,1),lighter(gr
 
 ax2.set_yscale("symlog")
 
-ax2.legend(ncol=3,bbox_to_anchor=(0.5, 1.),loc="lower center")
+ax2.legend(ncol=legend_ncol,bbox_to_anchor=(0.5, 1.),loc="lower center")
 
 ax2.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: "%d" % (x)))
 #ax2.set_xticks(t)
