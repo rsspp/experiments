@@ -1,14 +1,20 @@
-import matplotlib.pyplot as plt
-import numpy as np
+from common import *
 from matplotlib.lines import Line2D
 import matplotlib.ticker as ticker
-from common import *
 from math import log,pow
-from study import *
 import pandas
 
-traces = ["kth", "kthmorningquad", "kthmorningsingle", "caida18"]
+traces = ["kthmorningquad"]
 
+series= ["RSS", "Sprayer", "Software_Shared_Queue", "Software_RR_Queue", "Software_Stateful_RR", "Software_Stateful_Load", "Metron_Dynamic", "RSSPP"]
+labels= ["RSS", "Sprayer", "SW Shared Queue", "SW RR Queues", "SW Stateful RR", "SW Stateful Load", "Traffic-Class", "RSS++"]
+tcolors = [ c_rss, c_sprayer, light_orange, dark_orange, light_red, dark_red, c_metron, c_rsspp ]
+legend_ncol=3
+
+tmarkers = markers
+
+if "RSS++" in labels:
+    tmarkers[labels.index("RSS++")] = 'd'
 
 print("Plotting tail latency according to load")
 
