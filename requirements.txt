@@ -1,0 +1,4 @@
+require-python-3
+numpy
+pandas
+matplotlib
