@@ -111,11 +111,12 @@ tunecycles:CYCLES={cycles,cyclesqueue,queue} //Try both
 FMARK=true
 VMARK=true
 DOMARK=true
+DOGROUP=true
 tunemark:FMARK={true,false}
 tunemark:VMARK={true,false}
-nomark:FMARK=false
-nomark:VMARK=false
-nomark:DOMARK=false
+nomark|rss:FMARK=false
+nomark|rss:VMARK=false
+nomark|rss:DOMARK=false
 
 //Size of the RETA table
 RETA_SIZE=512
@@ -223,6 +224,9 @@ fw,nat,dpi:FNT=FW+NAT+DPI
 fw,nat,frl:FNT=FW+NAT+SDPI
 hfw:FWSIZE=half
 
+
+lf:LF=1
+
 //----------Late variables----------
 // Late variables are default values, configuration that do not impact the test itself, or computed from the other values specific to the test
 //---------------------------------
@@ -231,6 +235,10 @@ R?=0
 S?=1
 FWIGNORE?=2
 
+LF?=0
+
+//Verbosity of FlowIPManager
+FLOWVERBOSE?=0
 
 //Default CPU freq
 FREQ?=3700
@@ -243,6 +251,7 @@ dynamicmetron|staticmetron:ISOLATE=0
 dynaw:W=EXPAND( $(( int( ($WBASE / 8) * $QUEUE) )) )
 dump:LATENCYDUMP=EXPAND(${NPF_OUTPUT_PATH}/lat-${NPF_REPO}-${TIMING}.csv)
 dump,-replay:LATENCYDUMP=EXPAND(${NPF_OUTPUT_PATH}/lat-${NPF_REPO}-${TIMING_FNT}.csv)
+dump,flow:LATENCYDUMP=EXPAND(${NPF_OUTPUT_PATH}/lat-${NPF_REPO}.csv)
 ANALYSIS?=0
 
 DANCER?=0
@@ -265,14 +274,14 @@ wpf:PROCESSER_FNT=EXPAND( -> fwp :: FlowWorkPackage(SEQUENTIAL $WPF_SEQ, TABLE_S
 STARTCPU?=-1
 FRESERVE?=0
 nat:FRESERVE=0
-migration:MIGRATIONT=2
+migration|nfmigration:MIGRATIONT=2
 migration:PQOSCORE=2
 
-migration|nat:PROCESSER_FNT=EXPAND(-> manager :: FlowIPManager(CAPACITY $(( int(6553600 / 128) )) , RESERVE $FRESERVE, GROUPS $RETA_SIZE, DEF_THREAD $QUEUE, VERBOSE 0, MARK $FMARK) )
-migration,shared|nat,shared:PROCESSER_FNT=EXPAND(-> manager :: FlowIPManagerMP(CAPACITY 6553600 , RESERVE $FRESERVE) )
-migration,-shared|nat,-shared:MANAGER_OPT=, MANAGER manager
+flow|migration|nat|dpi:PROCESSER_FNT=EXPAND(-> manager :: FlowIPManager(CAPACITY $(( int(6553600 / 128) )) , RESERVE $FRESERVE, GROUPS $RETA_SIZE, DEF_THREAD $QUEUE, VERBOSE $FLOWVERBOSE, MARK $FMARK, DO_MIGRATION true ) )
+flow,shared|migration,shared|nat,shared|dpi,shared:PROCESSER_FNT=EXPAND(-> manager :: FlowIPManagerMP(CAPACITY 6553600 , RESERVE $FRESERVE, LF $LF) )
+flow,-shared|migration,-shared|nat,-shared|dpi,-shared:MANAGER_OPT=, MANAGER manager
 MANAGER_OPT?=
-migration:MIGRATEDRV=EXPAND( migratedrv :: Script(TYPE PASSIVE, set n 1, wait $(( int(2 * $MIGRATIONT) )) s, label addc, print "Scaling to $STARTCPU + $n cores",  write balancer.cpus $(add $STARTCPU $n),  wait ${MIGRATIONT}s, set n $(add $n 1), goto addc ) )
+migration|nfmigration:MIGRATEDRV=EXPAND( migratedrv :: Script(TYPE PASSIVE, set n 1, wait $(( int(2 * $MIGRATIONT) )) s, label addc, print "Scaling to $STARTCPU + $n cores",  write balancer.cpus $(add $STARTCPU $n),  wait ${MIGRATIONT}s, set n $(add $n 1), goto addc ) )
 PROCESSER_FNT?=
 fw:PROCESSER_FNT+=EXPAND( -> IPFilter(file "$npf_root/$fw_rules_file") -> IPClassifier(udp,tcp,icmp,-)[0-3] =>{ input[0]->CheckUDPHeader(CHECKSUM $FW_CHKSUM)->[0];input[1] -> CheckTCPHeader(CHECKSUM $FW_CHKSUM)->[0]output;input[2]->CheckICMPHeader() -> [0]output;input[3]->[0]output;}  )
 rl:PROCESSER_FNT+= -> RandLoad(MIN 1, MAX 100)
@@ -392,8 +401,9 @@ killall -9 click
 sleep 1
 cat HEADER $RSS_SPLITTER_SCRIPT FOOTER > C
 cat C
-echo "Executing click at path $(which click)"
-$GDB click --dpdk -l 0-35 --log-level 99 -v -w ${self:0:pci},rx_vec_en=$RX_VEC_EN -- C queuesNb=$QUEUE threadsNb=$QUEUE numa=false toFile=$RSS_SPLITTER_OUT iface=${self:0:pci}
+totcpu=$(nproc)
+echo "Executing click at path $(which click), with $totcpu CPUs (but using only $QUEUE)"
+$GDB click --dpdk -l 0-\$(( $totcpu - 1 )) --log-level 99 -v -w ${self:0:pci},rx_vec_en=$RX_VEC_EN,dv_flow_en=1 -- C queuesNb=$QUEUE threadsNb=$QUEUE numa=false toFile=$RSS_SPLITTER_OUT iface=${self:0:pci}
 err=$?
 echo "Finished with code $err"
 exit $err
@@ -793,6 +803,8 @@ s :: Script(
     set npackets $(sub $packets $lastpackets),
 	set diff $(sub $ntime $lasttime),
     set lasttime $ntime,
+
+    print "$time-RESULT-DTTHROUGHPUT $(legit.link_rate)",
     print "$time-RESULT-DUTTHROUGHPUT $(div $(mul 8 $(add $nbytes $(mul $npackets 24) )) $diff)",
     set lastbytes $bytes,
     set lastpackets $packets,
@@ -811,14 +823,14 @@ s :: Script(
 
 
 %file@p rx-metron.click
-balancer :: DeviceBalancer(DEV fd0, METHOD "metron", CONFIG $RULES, CPUS $queuesNb, VERBOSE $BVERBOSE, TARGET $METRONTARGET, STARTCPU -1, UNDERLOAD 0.35, OVERLOAD 0.65, AUTOSCALE $AUTOSCALE, CYCLES $CYCLES, MIN_MOVEMENT $MINMVMT, TIMER $BALANCE_PERIOD, ACTIVE $DBACTIVE, MARK $DOMARK);
+balancer :: DeviceBalancer(DEV fd0, METHOD "metron", CONFIG $RULES, CPUS $queuesNb, VERBOSE $BVERBOSE, TARGET $METRONTARGET, STARTCPU -1, UNDERLOAD 0.35, OVERLOAD 0.65, AUTOSCALE $AUTOSCALE, CYCLES $CYCLES, MIN_MOVEMENT $MINMVMT, TIMER $BALANCE_PERIOD, ACTIVE $DBACTIVE);
 
 StaticThreadSched(balancer $BTHREAD)
 
 fd0
 
 %file@p rx-drss.click
-balancer :: DeviceBalancer(DEV fd0, METHOD "${TARGETMETHOD}", VERBOSE $BVERBOSE, TIMER $BALANCE_PERIOD, CPUS $queuesNb, TARGET $METRONTARGET, STARTCPU $STARTCPU, LOAD 0.90, RETA_SIZE $RETA_SIZE $MANAGER_OPT);
+balancer :: DeviceBalancer(DEV fd0, METHOD "${TARGETMETHOD}", VERBOSE $BVERBOSE, TIMER $BALANCE_PERIOD, CPUS $queuesNb, TARGET $METRONTARGET, STARTCPU $STARTCPU, LOAD 0.90, RETA_SIZE $RETA_SIZE $MANAGER_OPT, MARK $DOMARK);
 
 
 StaticThreadSched(balancer $BTHREAD)
@@ -829,7 +841,7 @@ fd0
 
 
 %file@p rx-pianorss.click
-balancer :: DeviceBalancer(DEV fd0, METHOD "${TARGETMETHOD}", VERBOSE $BVERBOSE, TIMER $BALANCE_PERIOD, CPUS $queuesNb, TARGET $METRONTARGET, STARTCPU -1, LOAD 0.90, RSSCOUNTER agg, AUTOSCALE $AUTOSCALE, CYCLES $CYCLES, RETA_SIZE $RETA_SIZE, IMBALANCE_THRESHOLD $IMBTHRESH, DANCER $DANCER, ACTIVE $DBACTIVE, NUMA $DBNUMA $MANAGER_OPT ); //VERIFIER RSS
+balancer :: DeviceBalancer(DEV fd0, METHOD "${TARGETMETHOD}", VERBOSE $BVERBOSE, TIMER $BALANCE_PERIOD, CPUS $queuesNb, TARGET $METRONTARGET, STARTCPU -1, LOAD 0.90, RSSCOUNTER agg, AUTOSCALE $AUTOSCALE, CYCLES $CYCLES, RETA_SIZE $RETA_SIZE, IMBALANCE_THRESHOLD $IMBTHRESH, DANCER $DANCER, ACTIVE $DBACTIVE, NUMA $DBNUMA $MANAGER_OPT, MARK $DOMARK, GROUP $DOGROUP ); //VERIFIER RSS
 
 
 StaticThreadSched(balancer $BTHREAD)
@@ -869,7 +881,7 @@ fd0
 //    -> Print(FD0, -1)
 
 %file@p FD_IO
-fd0 :: FromDPDKDevice(PORT $iface, N_QUEUES $queuesNb, NUMA $numa, THREADOFFSET 0, MINTHREADS $threadsNb, MAXTHREADS $threadsNb, VERBOSE $verbose, PAUSE $PAUSE, MODE flow_dir, FLOW_DIR_RULES_FILE $RULES, NDESC $NDESC, PROMISC true, PAINT_QUEUE true, ISOLATE $ISOLATE, BURST $BURST);
+fd0 :: FromDPDKDevice(PORT $iface, N_QUEUES $queuesNb, NUMA $numa, THREADOFFSET 0, MINTHREADS $threadsNb, MAXTHREADS $threadsNb, VERBOSE $verbose, PAUSE $PAUSE, MODE flow_dir, FLOW_DIR_RULES_FILE $RULES, NDESC $NDESC, PROMISC true, PAINT_QUEUE true, FLOW_ISOLATE $ISOLATE, BURST $BURST);
 
 
 %file@p PARALLEL_PROCESSER
@@ -926,6 +938,8 @@ s :: Script(
     set npackets $(sub $packets $lastpackets),
 	set diff $(sub $ntime $lasttime),
     set lasttime $ntime,
+
+    print "$time-RESULT-DTTHROUGHPUT $(legit.link_rate)",
     print "$time-RESULT-DUTTHROUGHPUT $(div $(mul 8 $(add $nbytes $(mul $npackets 24) )) $diff)",
     set lastbytes $bytes,
     set lastpackets $packets,

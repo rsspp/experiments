@@ -3,6 +3,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import pandas
 import numpy as np
+from itertools import takewhile
 
 graphcolor = [(31, 119, 180), (174, 199, 232), (255, 127, 14), (255, 187, 120),
               (44, 160, 44), (152, 223, 138), (214, 39, 40), (255, 152, 150),
@@ -80,3 +81,8 @@ def get_speed_gbps(s):
 def pandaload(s):
 
     return pandas.read_csv(s, header=None, engine="python", delim_whitespace=True,names=list(range(4))).to_numpy()
+
+def remove_common(ss):
+    res = ''.join(c[0] for c in takewhile(lambda x:
+                all(x[0] == y for y in x), zip(*ss)))
+    return [s[len(res):] for s in ss]

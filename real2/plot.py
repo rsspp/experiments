@@ -16,32 +16,51 @@ t=["FW","FWNAT","FWNATDPI"]
 labelss=["RSS", "Sprayer", "RSS++"]
 labelst=["FW", "FW+NAT", "FW+NAT+DPI"]
 
+
+tcolors=[c_rss,c_sprayer,c_rsspp]
+
 suffix=""
 
 linestyles = ['-','--',':']
-fillstyle = ''
+fillstyle = None
 fill=True
 ext='pdf'
+figsize=(6,4)
+tmarkers = ['o','^','d']
 
 #FwNat mode only
-if True:
+if False:
     suffix="-fwnat"
     t=["FWNAT"]
     labelst=[""]
+    figsize=(4.6,2.7)
+
+if False:
+    s=["RSS"]
+    labelss=["RSS"]
+    tcolors=[c_rss]
+    tmarkers = ['o']
+
+
+
+if False:
+    s=["RSS","RSSPP"]
+    labelss=["RSS","RSS++"]
+    tcolors=[c_rss,c_rsspp]
+    tmarkers = ['o','d']
 
 #Presenter mode
 if False:
     linestyles = ['none']
-    fillstyle = 'none'
+#    fillstyle = 'none'
     fill=False
 
+    ext="svg"
 
 exp_time=80
 
-tcolors=[c_rss,c_sprayer,c_rsspp]
 series=[]
 labels=[]
-tmarkers = ['o','^','d']
 
 for it,te in enumerate(t):
     for i,se in enumerate(s):
@@ -91,7 +110,8 @@ for trace in traces:
 #    thx = data.to_numpy()
 #    thx = thx[ thx[:,0] <= exp_time ]
     plt.clf()
-    plt.rcParams["figure.figsize"] = (6,4)
+    plt.rcParams["figure.figsize"] = figsize
+
     fig, ax1 = plt.subplots()
 
     ax2 = ax1
@@ -114,7 +134,7 @@ for trace in traces:
         #th = [np.nanmean(th[1:]) for th in th_s[i]]
         #f = th > X*0.95
 
-        rects = ax2.plot(X, med, color=scolor, marker=tmarkers[int(i % 3)], linestyle=linestyles[int(i / 3)], label=labels[i], fillstyle=fillstyle)
+        rects = ax2.plot(X, med, color=scolor, marker=tmarkers[int(i % 3)], linestyle=linestyles[int(i / 3) % len(linestyles)], label=labels[i], fillstyle=fillstyle)
 
         if fill:
             rects = ax2.fill_between(X, [np.percentile(d,25) for d in data], [np.percentile(d,75) for d in data], color=list(scolor) + [0.25])
