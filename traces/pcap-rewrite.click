@@ -1,4 +1,4 @@
-// sudo /home/tom/workspace/fastclick/bin/click --dpdk -l 0-15 -- limit=20000000 iface=0000:17:00.0 /home/tom/workspace/metron-testbed/metron-blackbox-metron/load-imbalance/tx-pcap-transformed.click trace=/mnt/traces/caida-2018/dirAT/trace.pcap endAfter=0 forceLen=0
+// Rewrites all source IP adresses to a given prefix
 
 classifier :: Classifier(12/0800, -);
 legit   :: AverageCounterMP(IGNORE 0);
