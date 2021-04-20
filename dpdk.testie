@@ -350,21 +350,21 @@ test -n "$WBASE"
 %-udp,-iterative,-replay,quad:import@client fastclick-play-single-mt-quad
 %udp:import@client fastclick-udpgen-latency-single-multiclient
 
-%perffct:import@dut perf-functions delay=25
+%perffct:import@server perf-functions delay=25
 
 
-%dpdk,i40e,-nobind:import@p dpdk-bind NIC=0
+%dpdk,i40e,-nobind:import@server dpdk-bind NIC=0
 %dpdk,i40e,-nobind:import@client dpdk-bind NIC=0
 
 //Set CPU frequency on the server
-%script@p sudo=true autokill=false
+%script@server sudo=true autokill=false
 (cd ~/workspace/linux-5.1/tools/power/cpupower/ && sudo LD_LIBRARY_PATH=. ~/workspace/linux-5.1/tools/power/cpupower/cpupower frequency-set -u ${FREQ}M -d ${FREQ}M)
 
 //Script to call perf to track LLC-LOADS
-%perf:script@p sudo=true autokill=false
+%perf:script@server sudo=true autokill=false
 bash perf.sh
 
-%file@p perf.sh
+%file@server perf.sh
 echo "Launching perf"
 start=$(date "+%s.%N")
 while true; do
@@ -375,10 +375,10 @@ while true; do
 done
 
 //Script to call PQOS to get LLC misses and other events
-%pqos:script@p sudo=true autokill=false name=pqos waitfor=LOAD_START delay=0
+%pqos:script@server sudo=true autokill=false name=pqos waitfor=LOAD_START delay=0
 bash pqos.sh
 
-%file@p pqos.sh
+%file@server pqos.sh
 pqos -m "all:0-$QUEUE" -i $(( int(10 * $ITERATION_TIME) )) -o test.log &
 start=$(date "+%s.%N")
 while true; do
@@ -395,7 +395,7 @@ done
 
 // ---------------------- MAIN CLICK SCRIPT -------------------------
 // At the processing machine, we always run a simple RSS-based receiver
-%script@p sudo=true autokill=true critical=true name=MainClickDUT
+%script@server sudo=true autokill=true critical=true name=MainClickDUT
 echo "Launching client $RSS_SPLITTER_SCRIPT"
 killall -9 click
 sleep 1
@@ -650,7 +650,7 @@ if verbose:
 
 
 //------- All the Click configurations ------------
-%file@p HEADER
+%file@server HEADER
 
 DPDKInfo(100000);
 define(
@@ -670,29 +670,29 @@ elementclass Pipeline {
 }
 td0 :: ToDPDKDevice(PORT $iface, VERBOSE $verbose, BLOCKING $BLOCKING);
 
-%pipeline,queue:file@p DISPATCHER
+%pipeline,queue:file@server DISPATCHER
 disp :: { [0] -> qu :: ThreadSafeQueue(CAPACITY $SINGLEDESC, BLOCKING $BLOCKING) -> {
     $LINKS
 } => [0-$(( int($CURMAX - 1) )) ] }
 
-%pipeline,flowrr:file@p DISPATCHER
+%pipeline,flowrr:file@server DISPATCHER
 disp :: { [0] -> rr :: FlowRRSwitch(MAX $QUEUE, LOAD $AWARE);
 $PQUEUES
 }
 
 
 
-%pipeline,rr:file@p DISPATCHER
+%pipeline,rr:file@server DISPATCHER
 disp :: { [0] -> rr :: RoundRobinSwitch(MAX $QUEUE);
 $PQUEUES
 }
 
-%file@p SINGLE_IO
+%file@server SINGLE_IO
 fd0 :: FromDPDKDevice(PORT $iface, N_QUEUES 1, NUMA $numa, THREADOFFSET 0, MAXTHREADS $dispatcherNb, VERBOSE $verbose, PAUSE $PAUSE, NDESC $SINGLEDESC, PROMISC true, PAINT_QUEUE true, BURST $BURST);
 
 fd0
 
-%file@p PIPELINE_PROCESSER
+%file@server PIPELINE_PROCESSER
 	-> classifier :: Classifier(12/0800, -)
 	-> Strip(14)
     -> MarkIPHeader
@@ -726,7 +726,7 @@ classifier[1] -> Print(NonIPv4) -> Discard;
 
 $DISPATCHERS
 
-%-notime:file@p QUEUE_READ
+%-notime:file@server QUEUE_READ
 /*
 s :: Script(
 	TYPE ACTIVE,
@@ -815,21 +815,21 @@ s :: Script(
 );
 */
 
-%file@p rx-process.click
+%file@server rx-process.click
  //!Keep in sync with pipeline
     ->  ps :: PaintSwitch()[0-$(( $CURMAX - 1  ))] => queuecount :: {
     $COUNTERS
    }
 
 
-%file@p rx-metron.click
+%file@server rx-metron.click
 balancer :: DeviceBalancer(DEV fd0, METHOD "metron", CONFIG $RULES, CPUS $queuesNb, VERBOSE $BVERBOSE, TARGET $METRONTARGET, STARTCPU -1, UNDERLOAD 0.35, OVERLOAD 0.65, AUTOSCALE $AUTOSCALE, CYCLES $CYCLES, MIN_MOVEMENT $MINMVMT, TIMER $BALANCE_PERIOD, ACTIVE $DBACTIVE);
 
 StaticThreadSched(balancer $BTHREAD)
 
 fd0
 
-%file@p rx-drss.click
+%file@server rx-drss.click
 balancer :: DeviceBalancer(DEV fd0, METHOD "${TARGETMETHOD}", VERBOSE $BVERBOSE, TIMER $BALANCE_PERIOD, CPUS $queuesNb, TARGET $METRONTARGET, STARTCPU $STARTCPU, LOAD 0.90, RETA_SIZE $RETA_SIZE $MANAGER_OPT, MARK $DOMARK);
 
 
@@ -840,7 +840,7 @@ StaticThreadSched(a $MONTHREAD);
 fd0
 
 
-%file@p rx-pianorss.click
+%file@server rx-pianorss.click
 balancer :: DeviceBalancer(DEV fd0, METHOD "${TARGETMETHOD}", VERBOSE $BVERBOSE, TIMER $BALANCE_PERIOD, CPUS $queuesNb, TARGET $METRONTARGET, STARTCPU -1, LOAD 0.90, RSSCOUNTER agg, AUTOSCALE $AUTOSCALE, CYCLES $CYCLES, RETA_SIZE $RETA_SIZE, IMBALANCE_THRESHOLD $IMBTHRESH, DANCER $DANCER, ACTIVE $DBACTIVE, NUMA $DBNUMA $MANAGER_OPT, MARK $DOMARK, GROUP $DOGROUP ); //VERIFIER RSS
 
 
@@ -875,16 +875,16 @@ fd0
 //    -> rss :: RSSVerifier(MASK 511, CPU $QUEUE)
       -> agg :: AggregateCounterVector(MASK $(( int($RETA_SIZE - 1) )) , MARK $VMARK)
 
-%file@p rx-none.click
+%file@server rx-none.click
 
 fd0
 //    -> Print(FD0, -1)
 
-%file@p FD_IO
+%file@server FD_IO
 fd0 :: FromDPDKDevice(PORT $iface, N_QUEUES $queuesNb, NUMA $numa, THREADOFFSET 0, MINTHREADS $threadsNb, MAXTHREADS $threadsNb, VERBOSE $verbose, PAUSE $PAUSE, MODE flow_dir, FLOW_RULES_FILE $RULES, NDESC $NDESC, PROMISC true, PAINT_QUEUE true, FLOW_ISOLATE $ISOLATE, BURST $BURST);
 
 
-%file@p PARALLEL_PROCESSER
+%file@server PARALLEL_PROCESSER
 	-> classifier :: Classifier(12/0800, -)
 	-> Strip(14)
 	-> check :: CheckIPHeader(VERBOSE true)
@@ -903,7 +903,7 @@ dropped -> Discard;
 
 
 
-%-notime:file@p DEV_READ
+%-notime:file@server DEV_READ
 s :: Script(
 	TYPE ACTIVE,
 	set RUNNING 1,
@@ -953,10 +953,10 @@ s :: Script(
 	goto loop $(eq $RUNNING 1),
 );
 
-%file@p RSS_IO
+%file@server RSS_IO
 fd0 :: FromDPDKDevice(PORT $iface, N_QUEUES $queuesNb, NUMA $numa, THREADOFFSET 0, MINTHREADS $threadsNb, MAXTHREADS $threadsNb, VERBOSE $verbose, PAUSE $PAUSE, NDESC $NDESC, RSS_AGGREGATE 1, PROMISC $PROMISC, PAINT_QUEUE true, BURST $BURST, MAX_RSS $QUEUE);
 
-%file@p FOOTER
+%file@server FOOTER
 
 $MIGRATEDRV
 

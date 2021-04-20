@@ -50,7 +50,7 @@ exit 1
 %import@client fastclick-play-single-mt autokill=false
 
 // At the processing machine, we always run a simple RSS-based receiver
-%script@p sudo=true autokill=false critical=false name=click-counter
+%script@server sudo=true autokill=false critical=false name=click-counter
 echo "Launching client $RSS_SPLITTER_SCRIPT"
 killall -9 click
 sleep 1
@@ -59,12 +59,12 @@ err=$?
 echo "Finished with code $err"
 exit $err
 
-%script@p sudo=true waitfor=TX_FINISHED name=Analyzer
+%script@server sudo=true waitfor=TX_FINISHED name=Analyzer
 echo "Killing click and analysing results (Differential $DIFFERENTIAL)"
 killall click
 python load.py
 
-%file@p load.py
+%file@server load.py
 import glob
 import re
 from natsort import natsorted
@@ -170,7 +170,7 @@ for TYPE in ["LENGTH","COUNT"]:
 
 print("Analysis finished")
 
-%file@p countflows.click
+%file@server countflows.click
 define(
     $iface      0000:03:00.0,
     $queuesNb   8,
