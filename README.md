@@ -69,7 +69,7 @@ sudo reboot
 ```
 
 ### Install DPDK on both machines
-Download DPDK 19.02 at [http://dpdk.org](http://dpdk.org), or directly with `wget http://fast.dpdk.org/rel/dpdk-19.02.tar.xz && tar -Jxvf dpdk-19.02.tar.xz  && cd dpdk-19.02`. Install DPDK's dependencies with `sudo apt install libnuma-dev build-essential python`. To compile DPDK, just use the interactive menu in `./usertools/setup.py`, then choose x86_64-native-linuxapp-gcc, then set up some huge pages, and if you use Intel NICs bind them.
+Download DPDK 19.02 at [http://dpdk.org](http://dpdk.org), or directly with `wget http://fast.dpdk.org/rel/dpdk-19.02.tar.xz && tar -Jxvf dpdk-19.02.tar.xz  && cd dpdk-19.02`. Install DPDK's dependencies with `sudo apt install libnuma-dev build-essential python`. To compile DPDK, just use the interactive menu in `./usertools/dpdk-setup.sh`, then choose x86_64-native-linuxapp-gcc, then set up some huge pages, and if you use Intel NICs bind them.
 
 For NPF to be able to build RSS++ automatically (and any DPDK application), you must export the RTE_SDK and RTE_TARGET variables. Edit your .bashrc and add:
 ```
