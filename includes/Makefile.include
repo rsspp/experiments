@@ -1,4 +1,4 @@
-NPF_PATH=/home/tom/npf/
+NPF_PATH=
 NPF_SERVER=server0,nic=0
 NPF_CLIENT=client0,nic=0
 
