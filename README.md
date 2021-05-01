@@ -20,7 +20,7 @@ Prerequisites
 -------------
 
 ### NPF (https://github.com/tbarbette/npf)
-Clone the repository with `git clone https://github.com/tbarbette/npf.git && cd npf`. Install python3 and python3-pip with your system package manager (`sudo apt install python3 python3-pip` for Debian-based systems) and the requirements of NPF with `pip3 install --user -r requirements.txt`. In case of troubles, you may find more help on the [README.md page of NPF](https://github.com/tbarbette/npf#network-performance-framework).
+NPF can be installed with python pip. Install python3 and python3-pip with your system package manager (`sudo apt install python3 python3-pip` for Debian-based systems) if not already done and install NPF with `pip3 install --user npf`. In case of troubles, you may find more help on the [README.md page of NPF](https://github.com/tbarbette/npf#network-performance-framework).
 
 You must define the servers and the NICs to be used *in the cluster folder of NPF*. This is our file for the server:
 cluster/server0.node
