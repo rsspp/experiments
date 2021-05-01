@@ -13,5 +13,5 @@ OUT=$3
 
 echo "Will set the end of destination MAC addresses from checksum in $IN to $OUT, randomly filling payload before computing checksum then snapping the packets to 128 bytes. It is the responsability of the replayer to fix checksum again."
 source $(dirname "$0")/../includes/Makefile.include
-${NPF_PATH}/build/rsspp/bin/click limit=20000000 $(dirname "$0")/gen-ip-filter.click trace=$IN endAfter=0 forceLen=0 strip=0 rulesFile=$OUT rulesNb=$rulesMax
+${NPF_PATH}build/rsspp/bin/click limit=20000000 $(dirname "$0")/gen-ip-filter.click trace=$IN endAfter=0 forceLen=0 strip=0 rulesFile=$OUT rulesNb=$rulesMax
 sed -i 's/,$//g' $OUT

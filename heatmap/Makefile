@@ -12,10 +12,10 @@ graph:
 test: test_cpu test_rtt
 
 test_cpu:
-	${NPF_PATH}/npf-run.py rsspp --testie ../kernel.testie --show-full --show-cmd --cluster client=${NPF_CLIENT} server=${NPF_SERVER} --output --graph-filename results/ --output-columns x raw ${NPF_FLAGS} --no-graph
+	${NPF_PATH}npf-run.py rsspp --testie ../kernel.testie --show-full --show-cmd --cluster client=${NPF_CLIENT} server=${NPF_SERVER} --output --graph-filename results/ --output-columns x raw ${NPF_FLAGS} --no-graph
 
 test_rtt:
-	${NPF_PATH}/npf-run.py rsspp --testie ../kernel.testie --show-full --show-cmd --cluster client=${NPF_CLIENT} server=${NPF_SERVER} --output --graph-filename results-3/ --output-columns x raw ${NPF_FLAGS} --config n_runs=3 --no-graph
+	${NPF_PATH}npf-run.py rsspp --testie ../kernel.testie --show-full --show-cmd --cluster client=${NPF_CLIENT} server=${NPF_SERVER} --output --graph-filename results-3/ --output-columns x raw ${NPF_FLAGS} --config n_runs=3 --no-graph
 
 arch=$(shell date '+%Y%m%d')
 
