@@ -1,0 +1,7 @@
+path=/home/tom/npf/
+addr=client0.kth.se
+//nfs=0
+
+0:ifname=eth0
+0:pci=0000:03:00.0
+0:mac=50:6b:4b:43:80:ab
