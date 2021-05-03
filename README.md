@@ -1,7 +1,7 @@
 RSS++ Experiments
 =================
 
-This repository focuses on reproducing experiments, the code of RSS++ itself is now merged into mainline FastClick available at https://github.com/tbarbette/fastclick. The [https://github.com/rsspp/fastclick](FastClick repository in this organisation) is deprecated but is the only one that kept Metron support and allows full reproducibility.
+This repository focuses on reproducing experiments, the code of RSS++ itself is now merged into mainline FastClick available at https://github.com/tbarbette/fastclick. The [FastClick repository in the RSS++ organisation](https://github.com/rsspp/fastclick) is deprecated but is the only one that kept Metron support and allows full reproducibility.
 This folder contains one sub-folder per experiment. Some figures of RSS++ paper relate to the same experiment. 
 
 Experiments have Makefiles that implement "make test" and "make graph". "make" alone will do both.
